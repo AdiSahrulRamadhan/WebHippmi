@@ -936,18 +936,18 @@
             </div>
             <div class="row justify-content-center mb-4">
                 <div class="col-md-10 text-center" data-aos="zoom-in">
-                    <img src="https://via.placeholder.com/800x400?text=Struktur+Organisasi+HIPPMI" class="org-structure shadow" alt="Struktur Organisasi HIPPMI">
+                    <img src="https://static.vecteezy.com/system/resources/previews/002/206/204/original/organizational-chart-tree-diagram-template-free-vector.jpg" class="org-structure shadow" alt="Struktur Organisasi HIPPMI - Struktur Organisasi Pendidikan" style="max-width:900px;width:100%;background:#fff;padding:12px;" onerror="this.onerror=null;this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Organizational-chart.svg/1200px-Organizational-chart.svg.png';">
                 </div>
             </div>
             <style>
                 .struktur-card{border:0;border-radius:16px;overflow:hidden;transition:transform .35s ease,box-shadow .35s ease;box-shadow:0 8px 18px rgba(0,0,0,0.06);background:#fff;position:relative;padding:0;border:1px solid #f0e6e6;}
                 .struktur-card .struktur-top{height:5px;background:linear-gradient(90deg,#e30a17,#ff7a7a);}
-                .struktur-card .struktur-body{padding:22px 20px;}
-                .struktur-card h4{color:var(--primary-color);margin-bottom:.5rem;font-size:1.06rem;font-weight:700;}
-                .struktur-card p{color:#444;margin-bottom:0;font-size:.90rem;line-height:1.65;}
+                .struktur-card .struktur-body{padding:22px 20px;text-align:center;}
+                .struktur-card h4{color:var(--primary-color);margin-bottom:.5rem;font-size:1.06rem;font-weight:700;text-align:center;}
+                .struktur-card p{color:#444;margin-bottom:0;font-size:.90rem;line-height:1.65;text-align:justify;text-justify:inter-word;}
                 .struktur-card:hover{transform:translateY(-8px);box-shadow:0 18px 40px rgba(0,0,0,0.11);}
-                .struktur-icon{width:42px;height:42px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(227,10,23,0.10),rgba(227,10,23,0.04));color:#e30a17;font-size:18px;margin-bottom:12px;border:1px solid rgba(227,10,23,0.08);}
-                .struktur-foto{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.10);margin-bottom:10px;}
+                .struktur-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(227,10,23,0.10),rgba(227,10,23,0.04));color:#e30a17;font-size:18px;margin:0 auto 12px;border:1px solid rgba(227,10,23,0.08);}
+                .struktur-foto{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.10);margin:0 auto 10px;display:block;}
             </style>
             <div class="row">          
                 <?php foreach($strukturList as $idx=>$s): $delay=100+($idx%6)*100; $anim=$idx%2===0?'fade-right':'fade-left'; $foto=!empty($s['foto'])?$s['foto']:''; $icon=!empty($s['icon'])?$s['icon']:'fa-sitemap'; $nama=htmlspecialchars($s['nama_jabatan']); $desc=htmlspecialchars($s['deskripsi']); ?>
