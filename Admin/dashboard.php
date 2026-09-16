@@ -71,6 +71,9 @@ if ($loginTimeRaw !== null && $loginTimeRaw !== '') {
     >
 
     <title>Dashboard Admin HIPPMI</title>
+    <link rel="icon" type="image/webp" href="../img/Logo.webp">
+    <link rel="icon" type="image/png" href="../img/Logo.png">
+    <link rel="apple-touch-icon" href="../img/Logo.png">
 
     <link
         rel="preconnect"

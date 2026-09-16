@@ -60,6 +60,9 @@ foreach ($calEventsRaw as $ce) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kegiatan - HIPPMI</title>
+    <link rel="icon" type="image/webp" href="img/Logo.webp">
+    <link rel="icon" type="image/png" href="img/Logo.png">
+    <link rel="apple-touch-icon" href="img/Logo.png">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->

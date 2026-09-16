@@ -425,6 +425,9 @@ sort($kategoriList);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kelola Berita - Admin HIPPMI</title>
+    <link rel="icon" type="image/webp" href="../img/Logo.webp">
+    <link rel="icon" type="image/png" href="../img/Logo.png">
+    <link rel="apple-touch-icon" href="../img/Logo.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
