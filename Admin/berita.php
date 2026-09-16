@@ -148,6 +148,8 @@ $formData = [
     'is_featured' => 0,
     'status' => 'published',
 ];
+$removeExistingGambar = false;
+$removeExistingAvatar = false;
 
 if ($action === 'edit' && $id > 0) {
     $stmt = $pdo->prepare("SELECT * FROM `berita` WHERE `id` = :id LIMIT 1");
@@ -183,6 +185,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
     $formData['status'] = in_array($_POST['status'] ?? '', ['published', 'draft'], true) ? $_POST['status'] : 'published';
     $customUrlGambar = trim((string) ($_POST['gambar_url'] ?? ''));
     $customUrlAvatar = trim((string) ($_POST['penulis_avatar_url'] ?? ''));
+    $removeExistingGambar = $action === 'edit' && (($_POST['hapus_gambar'] ?? '0') === '1');
+    $removeExistingAvatar = $action === 'edit' && (($_POST['hapus_avatar'] ?? '0') === '1');
 
     // Validasi
     if ($formData['judul'] === '') {
@@ -232,7 +236,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
             }
         }
     }
-    if ($uploadedGambarPath !== null) {
+    if ($removeExistingGambar) {
+        $formData['gambar'] = '';
+    } elseif ($uploadedGambarPath !== null) {
         $formData['gambar'] = $uploadedGambarPath;
     } elseif ($customUrlGambar !== '') {
         $formData['gambar'] = $customUrlGambar;
@@ -266,7 +272,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
             }
         }
     }
-    if ($uploadedAvatarPath !== null) {
+    if ($removeExistingAvatar) {
+        $formData['penulis_avatar'] = '';
+    } elseif ($uploadedAvatarPath !== null) {
         $formData['penulis_avatar'] = $uploadedAvatarPath;
     } elseif ($customUrlAvatar !== '') {
         $formData['penulis_avatar'] = $customUrlAvatar;
@@ -341,15 +349,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
                 'kategori' => $formData['kategori'],
                 'tipe' => $formData['tipe'],
                 'penulis' => $formData['penulis'],
-                'penulis_avatar' => $formData['penulis_avatar'],
+                'penulis_avatar' => $formData['penulis_avatar'] !== '' ? $formData['penulis_avatar'] : null,
                 'ringkasan' => $formData['ringkasan'],
                 'konten' => $formData['konten'],
-                'gambar' => $formData['gambar'],
+                'gambar' => $formData['gambar'] !== '' ? $formData['gambar'] : null,
                 'tanggal' => $formData['tanggal'],
                 'is_featured' => $formData['is_featured'],
                 'status' => $formData['status'],
                 'id' => $id,
             ]);
+            $oldGambar = (string)($existing['gambar'] ?? '');
+            if ($removeExistingGambar && $oldGambar !== '' && str_starts_with($oldGambar,'uploads/berita/')) {
+                $oldFile = __DIR__ . '/../' . $oldGambar;
+                if (file_exists($oldFile)) @unlink($oldFile);
+            }
+            if ($removeExistingAvatar) {
+                $oldAv = (string)($existing['penulis_avatar'] ?? '');
+                if ($oldAv !== '' && str_starts_with($oldAv,'uploads/penulis/')) {
+                    $oldAvFile = __DIR__ . '/../' . $oldAv;
+                    if (file_exists($oldAvFile)) @unlink($oldAvFile);
+                }
+            }
 
             $_SESSION['flash_success'] = 'Berita berhasil diperbarui!';
             redirectTo('berita.php');
@@ -430,6 +450,7 @@ sort($kategoriList);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
 
     <style>
         :root {
@@ -1547,15 +1568,27 @@ sort($kategoriList);
             }
             .panel-header {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: center;
+                text-align: center;
                 gap: 12px;
             }
+            .panel-header > div{ width:100%; text-align:center; }
+            .panel-header h3, .panel-header p{ text-align:center; width:100%; }
             .panel-actions {
                 width: 100%;
+                display:flex;
+                justify-content:center;
+                align-items:center;
             }
             .panel-actions .btn-primary {
                 width: 100%;
                 justify-content: center;
+            }
+            .panel-actions .btn-secondary{
+                width:auto;
+                min-width:160px;
+                justify-content:center;
+                margin:0 auto;
             }
             .filter-bar {
                 padding: 12px;
@@ -1646,6 +1679,17 @@ sort($kategoriList);
                 margin: 12px;
             }
         }
+        .form-grid > div{min-width:0}
+        .form-left,.form-right{min-width:0}
+        .form-control{max-width:100%;box-sizing:border-box}
+        .image-preview-container{height:130px !important;max-height:130px !important}
+        .image-preview-container img{height:130px !important;max-height:130px !important;object-fit:cover}
+        #imagePreviewBox{height:130px !important;max-height:130px !important}
+        #previewImg{height:130px !important;max-height:130px !important;object-fit:cover}
+        .ck-editor__editable{ min-height:300px; max-height:520px; font-size:13px; line-height:1.7; }
+        .ck.ck-toolbar{ border-radius:10px 10px 0 0 !important; border-color:var(--border) !important; }
+        .ck.ck-editor__main>.ck-editor__editable{ border-radius:0 0 10px 10px !important; border-color:var(--border) !important; background:#fff !important; }
+        .ck.ck-editor__editable:not(.ck-editor__nested-editable).ck-focused{ border-color:var(--primary) !important; box-shadow:0 0 0 3px rgba(227,10,23,.1) !important; }
     </style>
 </head>
 <body>
@@ -1720,7 +1764,7 @@ sort($kategoriList);
             <div class="topbar-right">
                 <a href="../berita.php" class="btn-view-site" target="_blank">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    <span>Buka Halaman Berita</span>
+                    <span>Lihat Publik</span>
                 </a>
             </div>
         </header>
@@ -1775,7 +1819,7 @@ sort($kategoriList);
                             <i class="fa-solid fa-check-circle"></i>
                         </div>
                         <div class="stat-info">
-                            <span>Berita Terbit</span>
+                            <span>Published</span>
                             <strong><?= $statPublished; ?></strong>
                         </div>
                     </div>
@@ -1833,12 +1877,12 @@ sort($kategoriList);
                           </select>
 
                           <select name="status" id="adminStatusFilter" class="select-filter">
-                              <option value="">Semua Status</option>
-                              <option value="published" <?= $filterStatus === 'published' ? 'selected' : ''; ?>>Terbit (Published)</option>
-                              <option value="draft" <?= $filterStatus === 'draft' ? 'selected' : ''; ?>>Draft</option>
-                          </select>
+                               <option value="">Semua Status</option>
+                               <option value="published" <?= $filterStatus === 'published' ? 'selected' : ''; ?>>Published</option>
+                               <option value="draft" <?= $filterStatus === 'draft' ? 'selected' : ''; ?>>Draft</option>
+                           </select>
 
-                         <button type="submit" class="btn-secondary" style="height: 40px; padding: 0 14px;" id="adminFilterBtn">
+                          <button type="submit" class="btn-secondary" style="height: 40px; padding: 0 14px;" id="adminFilterBtn">
                              <i class="fa-solid fa-filter"></i> Filter
                          </button>
 
@@ -1887,7 +1931,7 @@ sort($kategoriList);
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th class="checkbox-cell" style="width:42px; text-align:center;"><input type="checkbox" id="selectAll" title="Pilih semua"></th>
+                                    <th class="checkbox-cell" style="width:72px; text-align:center;"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);"><input type="checkbox" id="selectAll" title="Pilih semua"><span>All</span></label></th>
                                     <th class="sortable" style="width: 50px;"><a href="<?= adminSortUrl('id', $sortKey, $sortDir); ?>" style="text-decoration:none;">No<?= adminSortIcon('id', $sortKey, $sortDir); ?></a></th>
                                     <th style="width: 75px;">Gambar</th>
                                     <th class="sortable"><a href="<?= adminSortUrl('judul', $sortKey, $sortDir); ?>" style="text-decoration:none;">Judul<?= adminSortIcon('judul', $sortKey, $sortDir); ?></a></th>
@@ -1945,7 +1989,7 @@ sort($kategoriList);
                                             <td>
                                                 <?php if ($row['status'] === 'published'): ?>
                                                     <span class="badge badge-published">
-                                                        <i class="fa-solid fa-circle" style="font-size: 6px;"></i> Terbit
+                                                        <i class="fa-solid fa-circle" style="font-size: 6px;"></i> Published
                                                     </span>
                                                 <?php else: ?>
                                                     <span class="badge badge-draft">Draft</span>
@@ -1997,7 +2041,7 @@ sort($kategoriList);
                             <p><?= $action === 'create' ? 'Isi formulir di bawah ini untuk menerbitkan berita baru di website HIPPMI' : 'Perbarui informasi berita dan simpan perubahan'; ?></p>
                         </div>
                         <div class="panel-actions">
-                            <a href="berita.php" class="btn-secondary">
+                            <a href="berita.php" class="btn-secondary" onclick="if(document.referrer && document.referrer.indexOf('berita.php')!==-1){history.back();return false;}">
                                 <i class="fa-solid fa-arrow-left"></i>
                                 <span>Kembali ke Daftar</span>
                             </a>
@@ -2074,6 +2118,11 @@ sort($kategoriList);
                                             <img id="avatarPreviewImg" src="<?= !empty($avPreview) ? escape($avPreview) : 'https://placehold.co/80x80?text=Foto'; ?>" alt="Avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">
                                             <input type="url" id="penulis_avatar_url" name="penulis_avatar_url" class="form-control" style="flex:1;" value="<?= !empty($formData['penulis_avatar']) && str_starts_with($formData['penulis_avatar'],'http') ? escape($formData['penulis_avatar']) : ''; ?>" placeholder="Atau URL foto https://..." oninput="previewAvatarUrl(this.value)">
                                         </div>
+                                        <?php if($action==='edit' && !empty($existing['penulis_avatar'])): ?>
+                                        <input type="hidden" name="hapus_avatar" id="hapusAvatarInput" value="<?= $removeExistingAvatar ? '1' : '0' ?>">
+                                        <button type="button" class="btn-secondary" id="hapusAvatarBtn" style="width:100%;justify-content:center;margin-top:8px;color:var(--primary);border-color:#fecdd3;background:var(--primary-soft);"><i class="fa-solid <?= $removeExistingAvatar ? 'fa-rotate-left' : 'fa-trash-can' ?>"></i> <?= $removeExistingAvatar ? 'Batalkan Hapus Foto Penulis' : 'Hapus Foto Penulis / URL' ?></button>
+                                        <small id="hapusAvatarHelp" style="display:block;margin-top:6px;font-size:11px;color:var(--muted);text-align:center;"><?= $removeExistingAvatar ? 'Foto penulis akan dihapus saat Simpan ditekan.' : 'Hapus foto & URL penulis saat ini.' ?></small>
+                                        <?php endif; ?>
                                     </div>
 
                                     <div class="form-group" style="margin-bottom: 0;">
@@ -2098,6 +2147,11 @@ sort($kategoriList);
                                         <input type="url" id="gambar_url" name="gambar_url" class="form-control" value="<?= !empty($formData['gambar']) && str_starts_with($formData['gambar'], 'http') ? escape($formData['gambar']) : ''; ?>" placeholder="https://..." oninput="previewUrlImage(this.value)">
                                     </div>
 
+                                    <?php if($action==='edit' && !empty($existing['gambar'])): ?>
+                                    <input type="hidden" name="hapus_gambar" id="hapusGambarInput" value="<?= $removeExistingGambar ? '1' : '0' ?>">
+                                    <button type="button" class="btn-secondary" id="hapusGambarBtn" style="width:100%;justify-content:center;margin-top:4px;color:var(--primary);border-color:#fecdd3;background:var(--primary-soft);"><i class="fa-solid <?= $removeExistingGambar ? 'fa-rotate-left' : 'fa-trash-can' ?>"></i> <?= $removeExistingGambar ? 'Batalkan Hapus Gambar / URL' : 'Hapus Gambar / URL Saat Ini' ?></button>
+                                    <small id="hapusGambarHelp" style="display:block;margin-top:6px;font-size:11px;color:var(--muted);text-align:center;"><?= $removeExistingGambar ? 'Gambar sampul akan dihapus saat Simpan ditekan.' : 'Hapus file atau link sampul saat ini.' ?></small>
+                                    <?php endif; ?>
                                     <label style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 6px;">Pratinjau Gambar:</label>
                                     <div class="image-preview-container" id="imagePreviewBox">
                                         <?php
@@ -2445,6 +2499,46 @@ const openLogoutBtn=document.getElementById('openLogoutBtn'),logoutModal=documen
 if(openLogoutBtn)openLogoutBtn.addEventListener('click',()=>{logoutModal.classList.add('show');});
 function closeLogout(){logoutModal.classList.remove('show');}
 if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
+document.addEventListener('DOMContentLoaded', function(){
+    const el = document.getElementById('konten');
+    if(!el || typeof ClassicEditor === 'undefined') return;
+    ClassicEditor.create(el, {
+        placeholder: 'Tulis isi lengkap berita di sini...',
+        toolbar: ['heading','|','bold','italic','underline','link','bulletedList','numberedList','blockQuote','insertTable','undo','redo']
+    }).then(editor=>{
+        window.beritaEditor = editor;
+        const form = el.closest('form');
+        if(form) form.addEventListener('submit', ()=>{ el.value = editor.getData(); });
+    }).catch(err=>console.warn('CKEditor failed', err));
+});
+(function(){
+    var hgBtn=document.getElementById('hapusGambarBtn'), hgIn=document.getElementById('hapusGambarInput');
+    if(hgBtn && hgIn){
+        hgBtn.addEventListener('click', function(){
+            var rm = hgIn.value !== '1';
+            hgIn.value = rm ? '1' : '0';
+            hgBtn.innerHTML = rm ? '<i class="fa-solid fa-rotate-left"></i> Batalkan Hapus Gambar / URL' : '<i class="fa-solid fa-trash-can"></i> Hapus Gambar / URL Saat Ini';
+            var help=document.getElementById('hapusGambarHelp');
+            if(help) help.textContent = rm ? 'Gambar sampul akan dihapus saat Simpan ditekan.' : 'Hapus file atau link sampul saat ini.';
+            var fileEl=document.getElementById('gambar_file'), urlEl=document.getElementById('gambar_url');
+            var previewBox=document.getElementById('imagePreviewBox');
+            if(rm){ if(fileEl) fileEl.value=''; if(urlEl) urlEl.value=''; if(previewBox) previewBox.innerHTML='<div class="image-preview-empty" style="color:var(--primary);"><i class="fa-solid fa-trash-can"></i> Gambar akan dihapus setelah perubahan disimpan</div>'; }
+            else { if(previewBox && previewBox.textContent.indexOf('akan dihapus')!==-1) location.reload(); }
+        });
+    }
+    var avBtn=document.getElementById('hapusAvatarBtn'), avIn=document.getElementById('hapusAvatarInput');
+    if(avBtn && avIn){
+        avBtn.addEventListener('click', function(){
+            var rm = avIn.value !== '1';
+            avIn.value = rm ? '1' : '0';
+            avBtn.innerHTML = rm ? '<i class="fa-solid fa-rotate-left"></i> Batalkan Hapus Foto Penulis' : '<i class="fa-solid fa-trash-can"></i> Hapus Foto Penulis / URL';
+            var help=document.getElementById('hapusAvatarHelp');
+            if(help) help.textContent = rm ? 'Foto penulis akan dihapus saat Simpan ditekan.' : 'Hapus foto & URL penulis saat ini.';
+            var fileEl=document.getElementById('penulis_avatar_file'), urlEl=document.getElementById('penulis_avatar_url');
+            if(rm){ if(fileEl) fileEl.value=''; if(urlEl) urlEl.value=''; var img=document.getElementById('avatarPreviewImg'); if(img) img.src='https://placehold.co/80x80?text=Foto'; }
+        });
+    }
+})();
 </script>
 <div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;position:relative;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar Admin?</h4><p>Sesi akan diakhiri.</p><form method="post" action="logout.php"><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
 </body>

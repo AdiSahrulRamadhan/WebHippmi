@@ -121,6 +121,8 @@ $formData = [
     'link_daftar' => '',
     'status' => 'published',
 ];
+$removeExistingGambar = false;
+$removeExistingAvatar = false;
 
 if ($action === 'edit' && $id > 0) {
     $stmt = $pdo->prepare("SELECT * FROM `berita` WHERE `id` = :id LIMIT 1");
@@ -156,6 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
     $formData['status'] = in_array($_POST['status'] ?? '', ['published', 'draft'], true) ? $_POST['status'] : 'published';
     $customUrlGambar = trim((string) ($_POST['gambar_url'] ?? ''));
     $customUrlAvatar = trim((string) ($_POST['penulis_avatar_url'] ?? ''));
+    $removeExistingGambar = $action === 'edit' && (($_POST['hapus_gambar'] ?? '0') === '1');
+    $removeExistingAvatar = $action === 'edit' && (($_POST['hapus_avatar'] ?? '0') === '1');
 
     // Validasi
     if ($formData['judul'] === '') {
@@ -197,7 +201,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
             }
         }
     }
-    if ($uploadedGambarPath !== null) {
+    if ($removeExistingGambar) {
+        $formData['gambar'] = '';
+    } elseif ($uploadedGambarPath !== null) {
         $formData['gambar'] = $uploadedGambarPath;
     } elseif ($customUrlGambar !== '') {
         $formData['gambar'] = $customUrlGambar;
@@ -231,7 +237,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
             }
         }
     }
-    if ($uploadedAvatarPath !== null) {
+    if ($removeExistingAvatar) {
+        $formData['penulis_avatar'] = '';
+    } elseif ($uploadedAvatarPath !== null) {
         $formData['penulis_avatar'] = $uploadedAvatarPath;
     } elseif ($customUrlAvatar !== '') {
         $formData['penulis_avatar'] = $customUrlAvatar;
@@ -306,15 +314,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
                 'kategori' => $formData['kategori'],
                 'tipe' => $formData['tipe'],
                 'penulis' => $formData['penulis'],
-                'penulis_avatar' => $formData['penulis_avatar'],
+                'penulis_avatar' => $formData['penulis_avatar'] !== '' ? $formData['penulis_avatar'] : null,
                 'ringkasan' => $formData['ringkasan'],
                 'konten' => $formData['konten'],
-                'gambar' => $formData['gambar'],
+                'gambar' => $formData['gambar'] !== '' ? $formData['gambar'] : null,
                 'link_daftar' => $formData['link_daftar'] !== '' ? $formData['link_daftar'] : null,
                 'tanggal' => $formData['tanggal'],
                 'status' => $formData['status'],
                 'id' => $id,
             ]);
+            $oldGambarK = (string)($existing['gambar'] ?? '');
+            if ($removeExistingGambar && $oldGambarK !== '' && str_starts_with($oldGambarK,'uploads/berita/')) {
+                $oldFileK = __DIR__ . '/../' . $oldGambarK;
+                if (file_exists($oldFileK)) @unlink($oldFileK);
+            }
+            if ($removeExistingAvatar) {
+                $oldAvK = (string)($existing['penulis_avatar'] ?? '');
+                if ($oldAvK !== '' && str_starts_with($oldAvK,'uploads/penulis/')) {
+                    $oldAvFileK = __DIR__ . '/../' . $oldAvK;
+                    if (file_exists($oldAvFileK)) @unlink($oldAvFileK);
+                }
+            }
 
             $_SESSION['flash_success'] = 'Kegiatan berhasil diperbarui!';
             redirectTo('kegiatan.php');
@@ -425,7 +445,7 @@ sort($kategoriList);
 .form-grid{display:grid;grid-template-columns:2fr 1fr;gap:28px;padding:26px}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--dark)}.form-group label span{color:var(--primary)}.form-control{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;font-family:inherit}.form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(227,10,23,.1)}textarea.form-control{resize:vertical}.form-card{background:#fafbfc;border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px}.form-card h4{margin:0 0 16px;font-size:14px;font-weight:700;color:var(--dark)}
 .modal-backdrop{position:fixed;inset:0;background:rgba(16,16,19,.65);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}.modal-backdrop.show{display:flex}.modal-box{background:var(--white);border-radius:20px;max-width:440px;width:100%;padding:30px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:modalFadeIn .2s ease}@keyframes modalFadeIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}.modal-icon-del{width:65px;height:65px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px}.modal-box h4{margin:0 0 8px;font-size:18px;color:var(--dark)}.modal-box p{margin:0 0 22px;font-size:13px;color:var(--muted);line-height:1.6}.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.search-box input{width:200px}}@media(max-width:900px){.sidebar{transform:translateX(-100%)}.sidebar.show{transform:translateX(0)}.main-wrapper{margin-left:0}.menu-toggle.mobile-only{display:flex!important;align-items:center;justify-content:center;width:42px;height:42px}.content-body{padding:20px 16px}.topbar{padding:0 16px;min-height:64px}}
-@media(max-width:768px){.stats-grid{grid-template-columns:1fr}.filter-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}.filter-form .search-box{grid-column:1/-1;width:100%}.filter-form .search-box input{width:100%}.filter-form .select-filter{width:100%}.panel-header{flex-direction:column;align-items:flex-start}.panel-actions{width:100%}.panel-actions .btn-primary{width:100%;justify-content:center}.form-grid{padding:16px}}
+@media(max-width:768px){.stats-grid{grid-template-columns:1fr}.filter-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}.filter-form .search-box{grid-column:1/-1;width:100%}.filter-form .search-box input{width:100%}.filter-form .select-filter{width:100%}.panel-header{flex-direction:column;align-items:center;text-align:center}.panel-header>div{width:100%;text-align:center}.panel-header h3,.panel-header p{text-align:center;width:100%}.panel-actions{width:100%}.panel-actions .btn-primary{width:100%;justify-content:center}.form-grid{padding:16px}}
 
         /* Dashboard specific */
 /* Dashboard specific (welcome, stats, grid) */
@@ -1391,7 +1411,7 @@ sort($kategoriList);
                             <p><?= $action === 'create' ? 'Isi formulir di bawah ini untuk menerbitkan kegiatan baru di halaman Kegiatan HIPPMI' : 'Perbarui informasi kegiatan dan simpan perubahan'; ?></p>
                         </div>
                         <div class="panel-actions">
-                            <a href="berita.php" class="btn-secondary">
+                            <a href="kegiatan.php" class="btn-secondary" onclick="if(document.referrer && document.referrer.indexOf('kegiatan.php')!==-1){history.back();return false;}">
                                 <i class="fa-solid fa-arrow-left"></i>
                                 <span>Kembali ke Daftar</span>
                             </a>
@@ -1474,6 +1494,11 @@ sort($kategoriList);
                                             <img id="avatarPreviewImg" src="<?= !empty($avPreview) ? escape($avPreview) : 'https://placehold.co/80x80?text=Foto'; ?>" alt="Avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">
                                             <input type="url" id="penulis_avatar_url" name="penulis_avatar_url" class="form-control" style="flex:1;" value="<?= !empty($formData['penulis_avatar']) && str_starts_with($formData['penulis_avatar'],'http') ? escape($formData['penulis_avatar']) : ''; ?>" placeholder="Atau URL foto https://..." oninput="previewAvatarUrl(this.value)">
                                         </div>
+                                        <?php if($action==='edit' && !empty($existing['penulis_avatar'])): ?>
+                                        <input type="hidden" name="hapus_avatar" id="hapusAvatarInput" value="<?= $removeExistingAvatar ? '1' : '0' ?>">
+                                        <button type="button" class="btn-secondary" id="hapusAvatarBtn" style="width:100%;justify-content:center;margin-top:8px;color:var(--primary);border-color:#fecdd3;background:var(--primary-soft);"><i class="fa-solid <?= $removeExistingAvatar ? 'fa-rotate-left' : 'fa-trash-can' ?>"></i> <?= $removeExistingAvatar ? 'Batalkan Hapus Foto Penulis' : 'Hapus Foto Penulis / URL' ?></button>
+                                        <small id="hapusAvatarHelp" style="display:block;margin-top:6px;font-size:11px;color:var(--muted);text-align:center;"><?= $removeExistingAvatar ? 'Foto penulis akan dihapus saat Simpan ditekan.' : 'Hapus foto & URL penulis saat ini.' ?></small>
+                                        <?php endif; ?>
                                     </div>
 </div>
 
@@ -1491,6 +1516,11 @@ sort($kategoriList);
                                         <input type="url" id="gambar_url" name="gambar_url" class="form-control" value="<?= !empty($formData['gambar']) && str_starts_with($formData['gambar'], 'http') ? escape($formData['gambar']) : ''; ?>" placeholder="https://..." oninput="previewUrlImage(this.value)">
                                     </div>
 
+                                    <?php if($action==='edit' && !empty($existing['gambar'])): ?>
+                                    <input type="hidden" name="hapus_gambar" id="hapusGambarInput" value="<?= $removeExistingGambar ? '1' : '0' ?>">
+                                    <button type="button" class="btn-secondary" id="hapusGambarBtn" style="width:100%;justify-content:center;margin-top:4px;color:var(--primary);border-color:#fecdd3;background:var(--primary-soft);"><i class="fa-solid <?= $removeExistingGambar ? 'fa-rotate-left' : 'fa-trash-can' ?>"></i> <?= $removeExistingGambar ? 'Batalkan Hapus Gambar / URL' : 'Hapus Gambar / URL Saat Ini' ?></button>
+                                    <small id="hapusGambarHelp" style="display:block;margin-top:6px;font-size:11px;color:var(--muted);text-align:center;"><?= $removeExistingGambar ? 'Gambar sampul akan dihapus saat Simpan ditekan.' : 'Hapus file atau link sampul saat ini.' ?></small>
+                                    <?php endif; ?>
                                     <label style="font-size: 11px; color: var(--muted); display: block; margin-bottom: 6px;">Pratinjau Gambar:</label>
                                     <div class="image-preview-container" id="imagePreviewBox">
                                         <?php
@@ -1809,6 +1839,34 @@ const openLogoutBtn=document.getElementById('openLogoutBtn'),logoutModal=documen
 if(openLogoutBtn)openLogoutBtn.addEventListener('click',()=>{logoutModal.classList.add('show');});
 function closeLogout(){logoutModal.classList.remove('show');}
 if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
+(function(){
+    var hgBtn=document.getElementById('hapusGambarBtn'), hgIn=document.getElementById('hapusGambarInput');
+    if(hgBtn && hgIn){
+        hgBtn.addEventListener('click', function(){
+            var rm = hgIn.value !== '1';
+            hgIn.value = rm ? '1' : '0';
+            hgBtn.innerHTML = rm ? '<i class="fa-solid fa-rotate-left"></i> Batalkan Hapus Gambar / URL' : '<i class="fa-solid fa-trash-can"></i> Hapus Gambar / URL Saat Ini';
+            var help=document.getElementById('hapusGambarHelp');
+            if(help) help.textContent = rm ? 'Gambar sampul akan dihapus saat Simpan ditekan.' : 'Hapus file atau link sampul saat ini.';
+            var fileEl=document.getElementById('gambar_file'), urlEl=document.getElementById('gambar_url');
+            var previewBox=document.getElementById('imagePreviewBox');
+            if(rm){ if(fileEl) fileEl.value=''; if(urlEl) urlEl.value=''; if(previewBox) previewBox.innerHTML='<div class="image-preview-empty" style="color:var(--primary);"><i class="fa-solid fa-trash-can"></i> Gambar akan dihapus setelah perubahan disimpan</div>'; }
+            else { if(previewBox && previewBox.textContent.indexOf('akan dihapus')!==-1) location.reload(); }
+        });
+    }
+    var avBtn=document.getElementById('hapusAvatarBtn'), avIn=document.getElementById('hapusAvatarInput');
+    if(avBtn && avIn){
+        avBtn.addEventListener('click', function(){
+            var rm = avIn.value !== '1';
+            avIn.value = rm ? '1' : '0';
+            avBtn.innerHTML = rm ? '<i class="fa-solid fa-rotate-left"></i> Batalkan Hapus Foto Penulis' : '<i class="fa-solid fa-trash-can"></i> Hapus Foto Penulis / URL';
+            var help=document.getElementById('hapusAvatarHelp');
+            if(help) help.textContent = rm ? 'Foto penulis akan dihapus saat Simpan ditekan.' : 'Hapus foto & URL penulis saat ini.';
+            var fileEl=document.getElementById('penulis_avatar_file'), urlEl=document.getElementById('penulis_avatar_url');
+            if(rm){ if(fileEl) fileEl.value=''; if(urlEl) urlEl.value=''; var img=document.getElementById('avatarPreviewImg'); if(img) img.src='https://placehold.co/80x80?text=Foto'; }
+        });
+    }
+})();
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function(){
