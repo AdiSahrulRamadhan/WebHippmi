@@ -2041,8 +2041,8 @@ if ($loginTimeRaw !== null && $loginTimeRaw !== '') {
 
                     <div class="stat-info">
                         <span>Total Kegiatan</span>
-                        <strong>0</strong>
-                        <small>Belum terhubung database</small>
+                        <strong><?= $totalKegiatan; ?></strong>
+                        <small>Tersimpan di database</small>
                     </div>
                 </article>
 
@@ -2206,7 +2206,7 @@ if ($loginTimeRaw !== null && $loginTimeRaw !== '') {
                 method="post"
                 action="logout.php"
                 id="logoutForm"
-            >
+            ><?= csrfField() ?>
                 <div class="modal-actions">
 
                     <button
