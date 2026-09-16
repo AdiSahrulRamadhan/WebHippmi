@@ -917,6 +917,8 @@
     <?php
     require_once __DIR__ . '/koneksi.php';
     try { $pdoStruktur = getDBConnection(); $strukturList = $pdoStruktur->query("SELECT * FROM `struktur_organisasi` WHERE `status`='published' ORDER BY `urutan` ASC, `id` ASC")->fetchAll(); } catch(Throwable $e){ $strukturList=[]; }
+    $strukturGambarUtama='https://static.vecteezy.com/system/resources/previews/002/206/204/original/organizational-chart-tree-diagram-template-free-vector.jpg';
+    try{ $pdoSet=getDBConnection(); $rSet=$pdoSet->query("SELECT `nilai` FROM `site_settings` WHERE `kunci`='struktur_gambar_utama' LIMIT 1")->fetch(); if($rSet && trim((string)$rSet['nilai'])!=='') $strukturGambarUtama=trim((string)$rSet['nilai']); } catch(Throwable $e){}
     if(empty($strukturList)){
         $strukturList=[
             ['nama_jabatan'=>'Ketua Umum','deskripsi'=>'Pemimpin organisasi yang mengoordinasikan keseluruhan kegiatan dan kebijakan HIPPMI. Bertanggung jawab atas arah visi, misi, dan pencapaian tujuan organisasi secara menyeluruh.','icon'=>'fa-crown','foto'=>''],
@@ -939,7 +941,7 @@
             </div>
             <div class="row justify-content-center mb-4">
                 <div class="col-md-10 text-center" data-aos="zoom-in">
-                    <img src="https://static.vecteezy.com/system/resources/previews/002/206/204/original/organizational-chart-tree-diagram-template-free-vector.jpg" class="org-structure shadow" alt="Struktur Organisasi HIPPMI - Struktur Organisasi Pendidikan" style="max-width:900px;width:100%;background:#fff;padding:12px;" onerror="this.onerror=null;this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Organizational-chart.svg/1200px-Organizational-chart.svg.png';">
+                    <img src="<?= htmlspecialchars($strukturGambarUtama) ?>" class="org-structure shadow" alt="Struktur Organisasi HIPPMI - Struktur Organisasi Pendidikan" style="max-width:900px;width:100%;background:#fff;padding:12px;" onerror="this.onerror=null;this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Organizational-chart.svg/1200px-Organizational-chart.svg.png';">
                 </div>
             </div>
             <style>

@@ -64,6 +64,49 @@ if ($action==='move' && $_SERVER['REQUEST_METHOD']==='POST' && $id>0){
     redirectTo('struktur.php');
 }
 
+if ($action==='update_gambar_utama' && $_SERVER['REQUEST_METHOD']==='POST') {
+    requireCsrf();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `site_settings` (`kunci` VARCHAR(100) PRIMARY KEY, `nilai` TEXT NULL, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $existingUtama=''; try { $row=$pdo->query("SELECT `nilai` FROM `site_settings` WHERE `kunci`='struktur_gambar_utama' LIMIT 1")->fetch(); $existingUtama=(string)($row['nilai']??''); } catch(Throwable $e){}
+    $hapusUtama = ($_POST['hapus_utama'] ?? '0') === '1';
+    $urlUtama = trim((string)($_POST['gambar_utama_url'] ?? ''));
+    $errUtama=[];
+    if($urlUtama!==''){
+        $sch=strtolower((string)parse_url($urlUtama,PHP_URL_SCHEME));
+        if(filter_var($urlUtama,FILTER_VALIDATE_URL)===false || !in_array($sch,['http','https'],true)) $errUtama[]='URL gambar utama harus http:// atau https:// yang valid.';
+    }
+    $uploadedUtama=null;
+    if(isset($_FILES['gambar_utama_file']) && $_FILES['gambar_utama_file']['error']===UPLOAD_ERR_OK){
+        $f=$_FILES['gambar_utama_file']; $ext=strtolower(pathinfo($f['name'],PATHINFO_EXTENSION)??'');
+        if(!in_array($ext,['jpg','jpeg','png','webp','gif'],true)) $errUtama[]='Format gambar utama tidak didukung (JPG/PNG/WEBP/GIF).';
+        elseif($f['size']>5*1024*1024) $errUtama[]='Ukuran gambar utama maksimal 5 MB.';
+        else {
+            $mimeOk=true; if(function_exists('finfo_open')){ $fi=finfo_open(FILEINFO_MIME_TYPE); $mi=$fi?finfo_file($fi,$f['tmp_name']):''; if($fi) finfo_close($fi); if(!in_array($mi,['image/jpeg','image/png','image/webp','image/gif'],true)){ $errUtama[]='File bukan gambar valid.'; $mimeOk=false; } elseif(@getimagesize($f['tmp_name'])===false){ $errUtama[]='File gambar tidak valid.'; $mimeOk=false; } }
+            if($mimeOk){
+                $dir=__DIR__.'/../uploads/struktur/'; if(!is_dir($dir)) @mkdir($dir,0777,true);
+                $name='utama_'.time().'_'.bin2hex(random_bytes(4)).'.'.$ext; $dest=$dir.$name;
+                if(move_uploaded_file($f['tmp_name'],$dest)){ $uploadedUtama='uploads/struktur/'.$name; if($existingUtama!=='' && str_starts_with($existingUtama,'uploads/struktur/utama_')){ $old=__DIR__.'/../'.$existingUtama; if(file_exists($old)) @unlink($old); } } else $errUtama[]='Gagal mengunggah gambar utama.';
+            }
+        }
+    }
+    if(!empty($errUtama)){ $_SESSION['flash_error']=implode(' ',$errUtama); redirectTo('struktur.php'); }
+    if($hapusUtama){
+        if($existingUtama!=='' && str_starts_with($existingUtama,'uploads/struktur/utama_')){ $old=__DIR__.'/../'.$existingUtama; if(file_exists($old)) @unlink($old); }
+        $pdo->prepare("REPLACE INTO `site_settings` (`kunci`,`nilai`) VALUES ('struktur_gambar_utama','')")->execute();
+        $_SESSION['flash_success']='Gambar utama struktur dihapus.';
+    } elseif($uploadedUtama!==null){
+        $pdo->prepare("REPLACE INTO `site_settings` (`kunci`,`nilai`) VALUES ('struktur_gambar_utama',:v)")->execute(['v'=>$uploadedUtama]);
+        $_SESSION['flash_success']='Gambar utama struktur berhasil diperbarui.';
+    } elseif($urlUtama!==''){
+        if($existingUtama!=='' && str_starts_with($existingUtama,'uploads/struktur/utama_')){ $old=__DIR__.'/../'.$existingUtama; if(file_exists($old)) @unlink($old); }
+        $pdo->prepare("REPLACE INTO `site_settings` (`kunci`,`nilai`) VALUES ('struktur_gambar_utama',:v)")->execute(['v'=>$urlUtama]);
+        $_SESSION['flash_success']='Gambar utama struktur (URL) berhasil diperbarui.';
+    } else {
+        $_SESSION['flash_error']='Pilih file atau isi URL gambar utama, atau klik Hapus.';
+    }
+    redirectTo('struktur.php');
+}
+
 $formErrors=[];
 $formData=['nama_jabatan'=>'','deskripsi'=>'','icon'=>'fa-sitemap','foto'=>'','urutan'=>0,'status'=>'published'];
 $removeExistingFoto=false;
@@ -884,6 +927,34 @@ $deleteFotoLabel=$storedFotoIsUpload?'Hapus Gambar Saat Ini':'Hapus URL Saat Ini
 </form>
 </div>
 <?php else: ?>
+<?php
+$gambarUtamaNilai=''; $gambarUtamaSrc=''; $isUtamaUpload=false;
+try{ $pdo->exec("CREATE TABLE IF NOT EXISTS `site_settings` (`kunci` VARCHAR(100) PRIMARY KEY, `nilai` TEXT NULL, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); $gr=$pdo->query("SELECT `nilai` FROM `site_settings` WHERE `kunci`='struktur_gambar_utama' LIMIT 1")->fetch(); $gambarUtamaNilai=(string)($gr['nilai']??''); if($gambarUtamaNilai!==''){ $isUtamaUpload=str_starts_with($gambarUtamaNilai,'uploads/'); $gambarUtamaSrc=$isUtamaUpload?'../'.$gambarUtamaNilai:$gambarUtamaNilai; } } catch(Throwable $e){}
+?>
+<div class="panel" style="border:1px solid #e6e6ec;">
+<div class="panel-header"><div><h3><i class="fa-solid fa-image" style="color:var(--primary);margin-right:8px;"></i> Gambar Utama Struktur</h3><p>Gambar bagan di beranda (di atas kartu jabatan). File atau URL, maks 5MB. Kosongkan tampil fallback.</p></div><a href="../beranda.php#struktur" target="_blank" class="btn-secondary" style="font-size:12px;padding:8px 14px;"><i class="fa-solid fa-eye"></i> Lihat Beranda</a></div>
+<form method="post" enctype="multipart/form-data" action="struktur.php?action=update_gambar_utama" id="gambarUtamaForm"><?= csrfField() ?>
+<div style="display:grid;grid-template-columns:1.2fr .8fr;gap:20px;padding:22px 26px;">
+<div>
+<div class="form-group"><label>Upload File Gambar</label><input type="file" name="gambar_utama_file" id="gambarUtamaFile" class="form-control" accept=".jpg,.jpeg,.png,.webp,.gif"><small style="font-size:11px;color:var(--muted);">JPG/PNG/WEBP/GIF, maks 5MB</small></div>
+<div class="form-group"><label>Atau URL Gambar</label><input type="url" name="gambar_utama_url" id="gambarUtamaUrl" class="form-control" placeholder="https://..." value="<?= escape(!$isUtamaUpload && $gambarUtamaNilai!=='' ? $gambarUtamaNilai : '') ?>"><small style="font-size:11px;color:var(--muted);">URL http/https. Jika file & URL diisi, file diprioritaskan.</small></div>
+<div style="display:flex;gap:10px;margin-top:6px;">
+<button type="submit" class="btn-primary" style="flex:1;justify-content:center;padding:12px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Gambar Utama</button>
+</div>
+<input type="hidden" name="hapus_utama" id="hapusUtamaInput" value="0">
+<?php if($gambarUtamaNilai!==''): ?>
+<button type="button" class="btn-secondary" id="hapusUtamaBtn" style="width:100%;justify-content:center;margin-top:10px;color:var(--primary);border-color:#fecdd3;background:var(--primary-soft);"><i class="fa-solid fa-trash-can"></i> Hapus Gambar Utama</button>
+<small id="hapusUtamaHelp" style="display:block;margin-top:6px;font-size:11px;color:var(--muted);text-align:center;">Hapus file/URL saat ini (jadi fallback).</small>
+<?php endif; ?>
+</div>
+<div>
+<label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;">Pratinjau:</label>
+<div class="image-preview-container" id="gambarUtamaPreview" style="height:180px !important;max-height:180px !important;"><?php if($gambarUtamaSrc!==''): ?><img src="<?= escape($gambarUtamaSrc) ?>" alt="Gambar Utama" style="width:100%;height:180px;object-fit:cover;" onerror="this.onerror=null;this.src='https://placehold.co/600x300?text=Gambar+Utama';"><?php else: ?><div class="image-preview-empty"><i class="fa-solid fa-image"></i><span>Belum ada gambar — akan pakai default di beranda</span></div><?php endif; ?></div>
+<small style="font-size:11px;color:var(--muted);display:block;margin-top:8px;">Tampil di beranda #struktur di atas grid jabatan.</small>
+</div>
+</div>
+</form>
+</div>
 <div class="stats-grid">
 <div class="stat-card"><div class="stat-icon red"><i class="fa-solid fa-sitemap"></i></div><div class="stat-info"><span>Total Jabatan</span><strong><?= $statTotal ?></strong></div></div>
 <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-eye"></i></div><div class="stat-info"><span>Published</span><strong><?= $statPublished ?></strong></div></div>
@@ -995,6 +1066,26 @@ if(fotoUrlInput&&fotoPreview) fotoUrlInput.addEventListener('change',()=>{
     setDeleteButtonState(false);
     try{ const parsed=new URL(value); if(['http:','https:'].includes(parsed.protocol)) setPreviewImage(parsed.href); }catch(error){}
 });
+(function(){
+const guFile=document.getElementById('gambarUtamaFile'), guUrl=document.getElementById('gambarUtamaUrl'), guPreview=document.getElementById('gambarUtamaPreview'), guHapusIn=document.getElementById('hapusUtamaInput'), guHapusBtn=document.getElementById('hapusUtamaBtn'), guHelp=document.getElementById('hapusUtamaHelp');
+function guSetPreview(src){ if(!guPreview) return; const im=document.createElement('img'); im.src=src; im.alt='Gambar Utama'; im.style.width='100%'; im.style.height='180px'; im.style.objectFit='cover'; guPreview.replaceChildren(im); }
+if(guHapusBtn && guHapusIn){
+    guHapusBtn.addEventListener('click', ()=>{
+        const del = guHapusIn.value !== '1';
+        guHapusIn.value = del ? '1' : '0';
+        guHapusBtn.innerHTML = del ? '<i class="fa-solid fa-rotate-left"></i> Batalkan Hapus' : '<i class="fa-solid fa-trash-can"></i> Hapus Gambar Utama';
+        if(guHelp) guHelp.textContent = del ? 'Akan dihapus saat Simpan ditekan. Lepas Batalkan untuk batal.' : 'Hapus file/URL saat ini (jadi fallback).';
+        if(del){ if(guFile) guFile.value=''; if(guUrl) guUrl.value=''; if(guPreview) guPreview.innerHTML='<div class="image-preview-empty" style="color:var(--primary);"><i class="fa-solid fa-trash-can"></i> Gambar akan dihapus — simpan untuk terapkan</div>'; }
+        else { location.reload(); }
+    });
+}
+if(guFile && guPreview) guFile.addEventListener('change', ()=>{
+    const f=guFile.files[0]; if(!f) return; if(guUrl) guUrl.value=''; if(guHapusIn) guHapusIn.value='0'; guSetPreview(URL.createObjectURL(f));
+});
+if(guUrl && guPreview) guUrl.addEventListener('input', ()=>{
+    const v=guUrl.value.trim(); if(!v) return; if(guFile) guFile.value=''; if(guHapusIn) guHapusIn.value='0'; try{ const u=new URL(v); if(['http:','https:'].includes(u.protocol)) guSetPreview(u.href); }catch(e){}
+});
+})();
 setTimeout(()=>{document.querySelectorAll('.alert').forEach(a=>{a.classList.add('alert-hide');setTimeout(()=>a.style.display='none',500)});},4000);
 </script>
 </body>

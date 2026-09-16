@@ -174,6 +174,15 @@ function initDatabaseTables(PDO $pdo): void
     if ($countAdmin === 0) {
         seedAdminUsers($pdo);
     }
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `site_settings` (`kunci` VARCHAR(100) PRIMARY KEY, `nilai` TEXT NULL, `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $hasRow = (int) $pdo->query("SELECT COUNT(*) FROM `site_settings` WHERE `kunci`='struktur_gambar_utama'")->fetchColumn();
+        if ($hasRow === 0) {
+            $fallback = 'https://static.vecteezy.com/system/resources/previews/002/206/204/original/organizational-chart-tree-diagram-template-free-vector.jpg';
+            $ins = $pdo->prepare("INSERT IGNORE INTO `site_settings` (`kunci`,`nilai`) VALUES ('struktur_gambar_utama', :v)");
+            $ins->execute(['v' => $fallback]);
+        }
+    } catch (Throwable $e) {}
 }
 
 /**
