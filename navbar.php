@@ -848,6 +848,9 @@
             transform: translateX(0);
         }
     }
+    @media (max-width: 1366px) and (min-width: 992px) {
+        .navbar-modern .brand-text{ display:none !important; }
+    }
     @media (max-width: 1199.98px) {
         .navbar-nav .nav-item .nav-link {
             padding: 10px 4px;
@@ -861,73 +864,27 @@
         }
     }
     @media (max-width: 991.98px) and (min-width: 768px) {
-        .topbar {
-            padding: 8px 0;
-        }
-        .topbar-left {
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .topbar-right {
-            justify-content: center;
-            margin-top: 5px;
-        }
-        .row > .col-md-5, 
-        .row > .col-md-7 {
-            width: 100%;
-            text-align: center;
-        }
-        .topbar-link {
-            font-size: 0.8rem;
-            white-space: nowrap;
-        }
-        .topbar-social {
-            margin-top: 5px;
-        }
-        .topbar-social-icon {
-            width: 26px;
-            height: 26px;
-            font-size: 0.9rem;
-        }
-        .navbar-brand {
-            max-width: 70%;
-        }
-        .navbar-logo {
-            height: 45px;
-        }
-        .brand-title {
-            font-size: 1.2rem;
-        }
-        .brand-subtitle {
-            font-size: 0.65rem;
-        }
+        .topbar{padding:6px 0}
+        .topbar .container > .row{flex-direction:row!important;align-items:center!important;justify-content:space-between!important;flex-wrap:nowrap!important;gap:0}
+        .topbar .container > .row > [class*="col-"]{width:auto!important;flex:0 0 auto;display:flex;align-items:center}
+        .topbar-left{justify-content:flex-start!important;flex-wrap:nowrap!important;gap:12px}
+        .topbar-right{justify-content:flex-end!important;margin-top:0!important}
+        .topbar-link{font-size:.78rem;white-space:nowrap}
+        .topbar-social{margin-top:0;gap:8px}
+        .topbar-social-icon{width:26px;height:26px;font-size:.9rem}
+        .navbar-brand{max-width:70%}
+        .navbar-logo{height:45px}
+        .brand-title{font-size:1.2rem}
+        .brand-subtitle{font-size:.65rem}
     }
     @media (max-width: 820px) and (min-width: 768px) {
-        .topbar .container > .row {
-            flex-direction: column;
-        }
-        .topbar-left, .topbar-right {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            padding: 2px 0;
-        }
-        .topbar-right {
-            margin-top: 5px;
-        }
-        .topbar-left {
-            gap: 15px;
-        }
-        .topbar-link {
-            padding: 2px 10px;
-        }
-        .topbar-social {
-            gap: 12px;
-        }
-        .navbar > .container {
-            max-width: 95%;
-        }
+        .topbar{padding:6px 0}
+        .topbar .container > .row{flex-direction:row!important;align-items:center!important;justify-content:space-between!important;flex-wrap:nowrap!important;gap:0}
+        .topbar-left{width:auto!important;display:flex!important;justify-content:flex-start!important;padding:0!important;margin-top:0!important;gap:12px;align-items:center!important}
+        .topbar-right{width:auto!important;display:flex!important;justify-content:flex-end!important;padding:0!important;margin-top:0!important;align-items:center!important}
+        .topbar-link{padding:2px 6px!important;font-size:.78rem!important}
+        .topbar-social{gap:8px!important;margin-top:0!important}
+        .navbar > .container{max-width:95%}
     }
     @media (max-width: 767.98px) and (min-width: 576px) {
         .topbar {

@@ -399,6 +399,8 @@
     .footer-copyright-dark .row{justify-content:center;text-align:center}
     .footer-copyright-dark .row > div{text-align:center !important;justify-content:center;align-items:center;display:flex;flex-direction:column}
     .footer-flag-container{justify-content:center;margin:0 auto}
+    @media(min-width:768px) and (max-width:991.98px){ .footer-modern [data-aos]{opacity:1!important;transform:none!important} .footer-modern [data-aos].aos-animate{opacity:1!important;transform:none!important} .footer-modern .social-icons{gap:6px;flex-wrap:wrap} .footer-modern .social-icon{width:32px;height:32px;font-size:.85rem} .footer-modern .footer-card-header{padding:12px} .footer-modern .footer-card-header i{font-size:18px} .footer-modern .footer-card-header h5{font-size:.95rem} }
+    @media(min-width:992px) and (max-width:1366px){ .footer-modern [data-aos]{opacity:1!important;transform:none!important} .footer-modern [data-aos].aos-animate{opacity:1!important;transform:none!important} }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
@@ -409,5 +411,8 @@
             easing: 'ease-in-out',
             once: true
         });
+        function footerAosFix(){ try{ if(window.innerWidth>=768&&window.innerWidth<=1366){ document.querySelectorAll('.footer-modern [data-aos]').forEach(function(el){ el.classList.add('aos-animate'); }); } if(window.AOS&&AOS.refreshHard) AOS.refreshHard(); else if(window.AOS&&AOS.refresh) AOS.refresh(); }catch(e){} }
+        setTimeout(footerAosFix, 120);
+        window.addEventListener('load', function(){ setTimeout(footerAosFix, 180); });
     });
 </script>

@@ -15,6 +15,7 @@ header('Expires: 0');
 
 $adminUsername = (string) ($_SESSION['admin_username'] ?? ADMIN_USERNAME);
 $adminInitial = strtoupper(substr($adminUsername, 0, 1));
+$adminRole = (string) ($_SESSION['admin_role'] ?? 'admin');
 
 $action = $_GET['action'] ?? 'index';
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -1655,7 +1656,7 @@ sort($kategoriList);
     <!-- Sidebar -->
     <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-brand">
-            <img src="../img/Logo.png" alt="Logo HIPPMI">
+            <img src="../img/Logo.webp" alt="Logo HIPPMI">
             <div class="brand-information">
                 <strong>HIPPMI</strong>
                 <span>Admin Panel</span>
@@ -1663,47 +1664,44 @@ sort($kategoriList);
             <button type="button" class="sidebar-close-btn" id="sidebarClose" aria-label="Tutup Menu"><i class="fa-solid fa-angles-left"></i></button>
         </div>
 
-        <nav class="sidebar-navigation">
-            <span class="menu-label">Menu Utama</span>
+<nav class="sidebar-navigation">
+
+            <span class="menu-label">Menu utama</span>
+
             <a href="dashboard.php" class="sidebar-link">
                 <i class="fa-solid fa-house"></i>
                 <span>Dashboard</span>
             </a>
 
             <span class="menu-label">Kelola Konten</span>
+
             <a href="berita.php" class="sidebar-link active">
                 <i class="fa-solid fa-newspaper"></i>
                 <span>Kelola Berita</span>
             </a>
-
-            <span class="menu-label">Website Publik</span>
-            <a href="../beranda.php" class="sidebar-link" target="_blank">
-                <i class="fa-solid fa-globe"></i>
-                <span>Lihat Beranda</span>
-            </a>
-            <a href="../berita.php" class="sidebar-link" target="_blank">
-                <i class="fa-solid fa-square-rss"></i>
-                <span>Halaman Berita</span>
-            </a>
-            <a href="../kegiatan.php" class="sidebar-link" target="_blank">
+            <a href="kegiatan.php" class="sidebar-link">
                 <i class="fa-solid fa-calendar-days"></i>
-                <span>Halaman Kegiatan</span>
+                <span>Kelola Kegiatan</span>
             </a>
+            <a href="struktur.php" class="sidebar-link">
+                <i class="fa-solid fa-sitemap"></i>
+                <span>Struktur Organisasi</span>
+            </a>
+            <a href="core_values.php" class="sidebar-link">
+                <i class="fa-solid fa-star"></i>
+                <span>Core Values</span>
+            </a>
+            <?php if(isSuperAdmin()): ?>
+            <span class="menu-label">Kelola Admin</span>
+
+            <a href="admin_users.php" class="sidebar-link">
+                <i class="fa-solid fa-users-gear"></i>
+                <span>Kelola Admin</span>
+            </a>
+            <?php endif; ?>
         </nav>
 
-        <div class="sidebar-footer">
-            <div class="admin-profile">
-                <div class="avatar"><?= escape($adminInitial); ?></div>
-                <div class="admin-information">
-                    <strong><?= escape($adminUsername); ?></strong>
-                    <span>Administrator</span>
-                </div>
-            </div>
-            <a href="logout.php" class="logout-button">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Keluar</span>
-            </a>
-        </div>
+        <div class="sidebar-footer"><div class="admin-profile"><div class="avatar"><?= escape($adminInitial) ?></div><div class="admin-information"><strong><?= escape($adminUsername) ?></strong><span><?= escape(ucwords(str_replace('_',' ', $adminRole ?? "Administrator"))) ?></span></div></div><button type="button" class="logout-button" id="openLogoutBtn"><i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span></button></div>
     </aside>
 
     <!-- Main Content -->
@@ -2443,8 +2441,12 @@ sort($kategoriList);
         var lm2=document.getElementById('limitFeaturedModal');
         if(lm2) lm2.addEventListener('click', function(e){ if(e.target===lm2) closeLimitModal(); });
     })();
+const openLogoutBtn=document.getElementById('openLogoutBtn'),logoutModal=document.getElementById('logoutModal');
+if(openLogoutBtn)openLogoutBtn.addEventListener('click',()=>{logoutModal.classList.add('show');});
+function closeLogout(){logoutModal.classList.remove('show');}
+if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
 </script>
-
+<div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;position:relative;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar Admin?</h4><p>Sesi akan diakhiri.</p><form method="post" action="logout.php"><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
 </body>
 </html>
 

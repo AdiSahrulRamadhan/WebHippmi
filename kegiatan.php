@@ -849,6 +849,14 @@ foreach ($calEventsRaw as $ce) {
         .tab-content.active {
             display: block;
         }
+        #kegiatanDetailModal .modal-header { flex-wrap: nowrap !important; }
+        #kegiatanDetailModal .modal-header .btn-close { flex-shrink: 0; opacity: 1; min-width: 32px; min-height: 32px; }
+        @media (max-width: 576px) {
+            #kegiatanDetailModal .modal-dialog { margin: 0.5rem auto; max-width: calc(100% - 1rem); }
+            #kegiatanDetailModal .modal-header { padding: 12px 14px !important; }
+            #kegiatanDetailModal #kegModalTitle { font-size: 0.82rem !important; }
+            #kegiatanDetailModal #kegModalCat { font-size: 10px !important; padding: 4px 8px !important; }
+        }
     </style>
 </head>
 <body>
@@ -904,7 +912,7 @@ foreach ($calEventsRaw as $ce) {
                 <div class="row">
                     <!-- Filter Sidebar - diperbagus + AJAX -->
                     <div class="col-lg-3" data-aos="fade-right">
-                        <div class="filter-section sticky-lg-top" style="top: 100px; z-index: 100;">
+                        <div class="filter-section sticky-lg-top" style="top: 90px; z-index: 2;">
                             <h4 class="filter-header">Filter Kegiatan</h4>
                             <div class="search-filter mb-4">
                                 <input type="text" id="kegSearchInput" class="search-input" placeholder="Cari kegiatan..." value="<?= htmlspecialchars($_search); ?>">
@@ -1076,10 +1084,12 @@ foreach ($calEventsRaw as $ce) {
     <div class="modal fade" id="kegiatanDetailModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;">
-                <div class="modal-header py-3 px-4" style="background:linear-gradient(135deg,var(--primary-color),var(--primary-dark));color:#fff;">
-                    <span class="badge bg-white text-danger px-2 py-1 rounded-pill" id="kegModalCat" style="font-size:11px;">Kegiatan</span>
-                    <h5 class="modal-title fs-6 text-white text-truncate mb-0 ms-2" id="kegModalTitle" style="max-width:480px;">Detail Kegiatan</h5>
-                    <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header py-3 px-4" style="background:linear-gradient(135deg,var(--primary-color),var(--primary-dark));color:#fff;gap:10px;flex-wrap:nowrap;align-items:center;">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;overflow:hidden;">
+                        <span class="badge bg-white text-danger px-2 py-1 rounded-pill flex-shrink-0" id="kegModalCat" style="font-size:11px;white-space:nowrap;">Kegiatan</span>
+                        <h5 class="modal-title fs-6 text-white text-truncate mb-0 flex-grow-1" id="kegModalTitle" style="min-width:0;max-width:none;">Detail Kegiatan</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white flex-shrink-0" style="flex-shrink:0;opacity:1;" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <img src="" id="kegModalImg" class="img-fluid rounded-4 mb-4 w-100" style="max-height:380px;object-fit:cover;" alt="Kegiatan" onerror="this.src='https://placehold.co/800x400?text=Kegiatan+HIPPMI';">

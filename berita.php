@@ -1054,6 +1054,14 @@ $yearList = $stmtYears->fetchAll(PDO::FETCH_COLUMN);
                 text-align: center;
             }
         }
+        #newsDetailModal .modal-header{flex-wrap:nowrap!important}
+        #newsDetailModal .modal-header .btn-close{flex-shrink:0;opacity:1;min-width:32px;min-height:32px}
+        @media(max-width:576px){
+            #newsDetailModal .modal-dialog{margin:.5rem auto;max-width:calc(100% - 1rem)}
+            #newsDetailModal .modal-header{padding:12px 14px!important}
+            #newsDetailModal #newsModalTitle{font-size:.82rem!important}
+            #newsDetailModal #modalCategory{font-size:10px!important;padding:4px 8px!important}
+        }
     </style>
 </head>
 <body>
@@ -1503,12 +1511,12 @@ $yearList = $stmtYears->fetchAll(PDO::FETCH_COLUMN);
     <div class="modal fade" id="newsDetailModal" tabindex="-1" aria-labelledby="newsModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
-                <div class="modal-header py-3 px-4" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-white text-danger px-2 py-1 rounded-pill" id="modalCategory" style="font-size: 11px;">Kategori</span>
-                        <h5 class="modal-title fs-6 text-white text-truncate mb-0" id="newsModalTitle" style="max-width: 480px;">Detail Berita</h5>
+                <div class="modal-header py-3 px-4" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: #fff;gap:10px;flex-wrap:nowrap;align-items:center;">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="min-width:0;overflow:hidden;">
+                        <span class="badge bg-white text-danger px-2 py-1 rounded-pill flex-shrink-0" id="modalCategory" style="font-size: 11px;white-space:nowrap;">Kategori</span>
+                        <h5 class="modal-title fs-6 text-white text-truncate mb-0 flex-grow-1" id="newsModalTitle" style="min-width:0;max-width:none;">Detail Berita</h5>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white flex-shrink-0" style="flex-shrink:0;opacity:1;" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <img src="" id="modalImage" class="img-fluid rounded-4 mb-4 w-100" style="max-height: 380px; object-fit: cover; box-shadow: 0 5px 20px rgba(0,0,0,0.08);" alt="Sampul Berita" onerror="this.src='https://placehold.co/800x400?text=Berita+HIPPMI';">
