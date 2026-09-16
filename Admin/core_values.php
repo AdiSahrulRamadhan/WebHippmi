@@ -16,7 +16,8 @@ $flashSuccess = $_SESSION['flash_success'] ?? '';
 $flashError = $_SESSION['flash_error'] ?? '';
 unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
-if ($action === 'delete' && $id > 0) {
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
+    requireCsrf();
     $stmt = $pdo->prepare("SELECT * FROM `core_values` WHERE `id`=:id LIMIT 1");
     $stmt->execute(['id'=>$id]);
     $item = $stmt->fetch();
@@ -27,6 +28,7 @@ if ($action === 'delete' && $id > 0) {
     redirectTo('core_values.php');
 }
 if ($action === 'bulk_delete' && $_SERVER['REQUEST_METHOD']==='POST') {
+    requireCsrf();
     $ids = $_POST['ids'] ?? [];
     if(!is_array($ids)) $ids=[$ids];
     $ids=array_values(array_filter(array_map('intval',$ids),fn($v)=>$v>0));
@@ -35,12 +37,14 @@ if ($action === 'bulk_delete' && $_SERVER['REQUEST_METHOD']==='POST') {
     $pdo->prepare("DELETE FROM `core_values` WHERE `id` IN ($ph)")->execute($ids);
     $_SESSION['flash_success']=count($ids).' data berhasil dihapus.'; redirectTo('core_values.php');
 }
-if ($action==='toggle_status' && $id>0){
+if ($action==='toggle_status' && $_SERVER['REQUEST_METHOD']==='POST' && $id>0){
+    requireCsrf();
     $stmt=$pdo->prepare("SELECT status,judul FROM `core_values` WHERE `id`=:id LIMIT 1"); $stmt->execute(['id'=>$id]); $it=$stmt->fetch();
     if($it){ $ns=$it['status']==='published'?'draft':'published'; $pdo->prepare("UPDATE `core_values` SET `status`=:st WHERE `id`=:id")->execute(['st'=>$ns,'id'=>$id]); $_SESSION['flash_success']='Status "'.$it['judul'].'" diubah ke '.$ns; }
     redirectTo('core_values.php');
 }
-if ($action==='move' && $id>0){
+if ($action==='move' && $_SERVER['REQUEST_METHOD']==='POST' && $id>0){
+    requireCsrf();
     $dir=$_GET['dir']??'up';
     $cur=$pdo->prepare("SELECT id,urutan FROM `core_values` WHERE `id`=:id LIMIT 1"); $cur->execute(['id'=>$id]); $c=$cur->fetch();
     if($c){
@@ -65,8 +69,9 @@ if($action==='edit' && $id>0){
     if($_SERVER['REQUEST_METHOD']!=='POST') $formData=$existing;
 }
 if($_SERVER['REQUEST_METHOD']==='POST' && in_array($action,['create','edit'],true)){
+    requireCsrf();
     $formData['judul']=trim((string)($_POST['judul']??''));
-    $formData['deskripsi']=trim((string)($_POST['deskripsi']??''));
+    $formData['deskripsi']=sanitizeKonten(trim((string)($_POST['deskripsi']??'')));
     $formData['icon']=trim((string)($_POST['icon']??'fa-star'));
     $formData['urutan']=(int)($_POST['urutan']??0);
     $formData['status']=in_array($_POST['status']??'', ['published','draft'],true)?$_POST['status']:'published';
@@ -825,7 +830,7 @@ $statDraft=(int)$pdo->query("SELECT COUNT(*) FROM `core_values` WHERE `status`='
 <div class="panel">
 <div class="panel-header"><div><h3><?= $action==='create'?'Tambah Value':'Edit Value' ?></h3><p><?= $action==='create'?'Tambah nilai baru':'Perbarui nilai' ?></p></div><a href="core_values.php" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Kembali</a></div>
 <?php if(!empty($formErrors)): ?><div style="margin:20px 26px 0;padding:14px 16px;background:#fff0f1;border:1px solid #fecdd3;border-radius:12px;color:#e30a17;font-size:12px;"><strong><i class="fa-solid fa-triangle-exclamation"></i> Periksa kembali:</strong><ul style="margin:8px 0 0;padding-left:18px;"><?php foreach($formErrors as $e): ?><li><?= escape($e) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
-<form method="post" action="core_values.php?action=<?= $action ?><?= $action==='edit'?'&id='.$id:'' ?>">
+<form method="post" action="core_values.php?action=<?= $action ?><?= $action==='edit'?'&id='.$id:'' ?>"><?= csrfField() ?>
 <div class="form-grid">
 <div>
 <div class="form-group"><label>Judul <span>*</span></label><input type="text" name="judul" class="form-control" placeholder="Contoh: Kolaborasi" value="<?= escape($formData['judul']) ?>" required></div>
@@ -861,7 +866,7 @@ $statDraft=(int)$pdo->query("SELECT COUNT(*) FROM `core_values` WHERE `status`='
 <a href="core_values.php" class="btn-secondary">Reset</a>
 </form>
 </div>
-<form method="post" action="core_values.php?action=bulk_delete" id="bulkDeleteForm">
+<form method="post" action="core_values.php?action=bulk_delete" id="bulkDeleteForm"><?= csrfField() ?>
 <div class="bulk-bar" id="bulkBar"><div><strong id="bulkCount">0</strong> dipilih</div><div style="display:flex;gap:8px;"><button type="button" class="btn-secondary" style="padding:7px 14px;font-size:12px;" id="bulkCancel">Batal</button><button type="submit" class="btn-primary" style="background:#e30a17;padding:7px 14px;font-size:12px;"><i class="fa-solid fa-trash"></i> Hapus Terpilih</button></div></div>
 <div class="table-responsive">
 <table class="data-table"><thead><tr><th class="checkbox-cell" style="width:72px;text-align:center;"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);"><input type="checkbox" id="selectAll" title="Pilih semua"><span>All</span></label></th><th>Icon</th><th class="sortable"><a href="<?= escape(cvSortUrl('urutan',$sortKey,$sortDir)) ?>">Urutan<?= cvSortIcon('urutan',$sortKey,$sortDir) ?></a></th><th class="sortable"><a href="<?= escape(cvSortUrl('judul',$sortKey,$sortDir)) ?>">Judul<?= cvSortIcon('judul',$sortKey,$sortDir) ?></a></th><th>Deskripsi</th><th class="sortable"><a href="<?= escape(cvSortUrl('status',$sortKey,$sortDir)) ?>">Status<?= cvSortIcon('status',$sortKey,$sortDir) ?></a></th><th>Aksi</th></tr></thead><tbody>
@@ -875,8 +880,8 @@ $statDraft=(int)$pdo->query("SELECT COUNT(*) FROM `core_values` WHERE `status`='
 <td style="max-width:320px;"><span style="font-size:11px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;"><?= escape(mb_strimwidth($row['deskripsi'],0,120,'...')) ?></span></td>
 <td><?php if($row['status']==='published'): ?><span class="badge badge-published"><i class="fa-solid fa-eye"></i> Published</span><?php else: ?><span class="badge badge-draft">Draft</span><?php endif; ?></td>
 <td><div class="action-buttons">
-<a href="core_values.php?action=move&id=<?= (int)$row['id'] ?>&dir=up" class="btn-action up" title="Naik"><i class="fa-solid fa-arrow-up"></i></a>
-<a href="core_values.php?action=move&id=<?= (int)$row['id'] ?>&dir=down" class="btn-action up" title="Turun"><i class="fa-solid fa-arrow-down"></i></a>
+<form method="post" action="core_values.php?action=move&id=<?= (int)$row['id'] ?>&dir=up" style="display:inline;"><?= csrfField() ?><button type="submit" class="btn-action up" title="Naik"><i class="fa-solid fa-arrow-up"></i></button></form>
+<form method="post" action="core_values.php?action=move&id=<?= (int)$row['id'] ?>&dir=down" style="display:inline;"><?= csrfField() ?><button type="submit" class="btn-action up" title="Turun"><i class="fa-solid fa-arrow-down"></i></button></form>
 <a href="core_values.php?action=edit&id=<?= (int)$row['id'] ?>" class="btn-action edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
 <button type="button" class="btn-action delete" data-delete-url="core_values.php?action=delete&id=<?= (int)$row['id'] ?>" data-delete-title="<?= escape($row['judul']) ?>" onclick="openDeleteModal(this)"><i class="fa-solid fa-trash"></i></button>
 </div></td>
@@ -890,8 +895,8 @@ $statDraft=(int)$pdo->query("SELECT COUNT(*) FROM `core_values` WHERE `status`='
 </div>
 </div>
 </div>
-<div class="modal-backdrop" id="deleteModal"><div class="modal-box"><div class="modal-icon-del"><i class="fa-solid fa-trash"></i></div><h4>Hapus?</h4><p id="deleteModalText">Hapus permanen.</p><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeDeleteModal()">Batal</button><a href="#" id="confirmDeleteBtn" class="btn-primary" style="justify-content:center;background:var(--primary);">Hapus</a></div></div></div>
-<div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar?</h4><p>Sesi diakhiri.</p><form method="post" action="logout.php"><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
+<div class="modal-backdrop" id="deleteModal"><div class="modal-box"><div class="modal-icon-del"><i class="fa-solid fa-trash"></i></div><h4>Hapus?</h4><p id="deleteModalText">Hapus permanen.</p><form id="deleteForm" method="post" action=""><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeDeleteModal()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;background:var(--primary);">Hapus</button></div></form></div></div>
+<div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar?</h4><p>Sesi diakhiri.</p><form method="post" action="logout.php"><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
 <script>
 const sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('sidebarOverlay'),menuToggle=document.getElementById('menuToggle'),sidebarClose=document.getElementById('sidebarClose'),collapseToggle=document.getElementById('collapseToggle'),collapseIcon=document.getElementById('collapseIcon');
 function isDesktop(){return window.innerWidth>900}
@@ -907,7 +912,7 @@ const openLogoutBtn=document.getElementById('openLogoutBtn'),logoutModal=documen
 if(openLogoutBtn)openLogoutBtn.addEventListener('click',()=>{logoutModal.classList.add('show');});
 function closeLogout(){logoutModal.classList.remove('show');}
 if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
-function openDeleteModal(btn){const url=btn.getAttribute('data-delete-url'),title=btn.getAttribute('data-delete-title');document.getElementById('confirmDeleteBtn').href=url;document.getElementById('deleteModalText').textContent='Hapus "'+title+'" ?';document.getElementById('deleteModal').classList.add('show');}
+function openDeleteModal(btn){const url=btn.getAttribute('data-delete-url'),title=btn.getAttribute('data-delete-title');document.getElementById('deleteForm').action=url;document.getElementById('deleteModalText').textContent='Hapus "'+title+'" ?';document.getElementById('deleteModal').classList.add('show');}
 function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('show');}
 document.getElementById('deleteModal').addEventListener('click',e=>{if(e.target===document.getElementById('deleteModal'))closeDeleteModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDeleteModal();closeLogout();closeSidebar();}});

@@ -9,9 +9,19 @@ $error = '';
 $username = '';
 $logoutSuccess = isset($_GET['logout']) && $_GET['logout'] === 'success';
 
+if (isset($_GET['timeout'])) $error = 'Sesi habis karena tidak aktif. Silakan login kembali.';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
+
+    $rateKey = 'login_' . strtolower($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $rateErr = checkLoginRateLimit($rateKey);
+    if ($rateErr !== null) {
+        $error = $rateErr;
+    } elseif (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', (string)$_POST['csrf_token'])) {
+        $error = 'Token tidak valid. Muat ulang halaman.';
+    } else {
 
     if ($username === '' || $password === '') {
         $error = 'Username dan password wajib diisi.';
@@ -42,14 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare("UPDATE `admin_users` SET `password_hash`=:p WHERE `id`=:id")->execute(['p'=>$newHash,'id'=>$foundId]);
                 }
                 $pdo->prepare("UPDATE `admin_users` SET `last_login_at`=NOW() WHERE `id`=:id")->execute(['id'=>$foundId]);
-            } elseif (hash_equals(strtolower(ADMIN_USERNAME), strtolower($username)) && hash_equals(ADMIN_PASSWORD, $password)) {
-                $ok = true;
             }
         } catch (Throwable $e) {
-            $ok = hash_equals(strtolower(ADMIN_USERNAME), strtolower($username)) && hash_equals(ADMIN_PASSWORD, $password);
+            $error = 'Gagal koneksi database. Coba lagi.';
         }
 
         if ($ok) {
+            registerLoginAttempt($rateKey, true);
             session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_username'] = $foundUser !== '' ? $foundUser : ADMIN_USERNAME;
@@ -57,11 +66,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['admin_role'] = $foundRole;
             $_SESSION['admin_login_time'] = time();
             $_SESSION['admin_last_login_db'] = date('Y-m-d H:i:s');
+            $_SESSION['__last_active'] = time();
             session_write_close();
             redirectTo('dashboard.php');
         } else {
+            registerLoginAttempt($rateKey, false);
             $error = 'Username atau password salah.';
         }
+    }
     }
 }
 ?>
@@ -127,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php if ($error !== ''): ?>
                 <div class="alert alert-danger"><i class="fa-solid fa-circle-exclamation"></i><span><?= escape($error); ?></span></div>
             <?php endif; ?>
-            <form method="post" action="" autocomplete="off">
+            <form method="post" action="" autocomplete="off"><?= csrfField() ?>
                 <div class="form-group">
                     <label for="username">Username</label>
                     <div class="input-wrapper">

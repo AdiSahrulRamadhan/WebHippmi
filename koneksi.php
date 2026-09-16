@@ -4,10 +4,26 @@
  * Koneksi Database & Helper HIPPMI
  */
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'db_hippmi');
+if (!function_exists('loadEnv')) {
+    function loadEnv(string $path): void {
+        if (!file_exists($path)) return;
+        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#') continue;
+            if (strpos($line, '=') === false) continue;
+            [$k,$v] = explode('=', $line, 2);
+            $k = trim($k); $v = trim($v);
+            if ($k !== '' && getenv($k) === false && !isset($_ENV[$k])) {
+                putenv("$k=$v"); $_ENV[$k] = $v;
+            }
+        }
+    }
+    loadEnv(__DIR__ . '/.env');
+}
+define('DB_HOST', getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? 'localhost'));
+define('DB_USER', getenv('DB_USER') ?: ($_ENV['DB_USER'] ?? 'root'));
+define('DB_PASS', getenv('DB_PASS') ?: ($_ENV['DB_PASS'] ?? ''));
+define('DB_NAME', getenv('DB_NAME') ?: ($_ENV['DB_NAME'] ?? 'db_hippmi'));
 
 /**
  * Mendapatkan koneksi PDO ke database
@@ -42,7 +58,9 @@ function getDBConnection(): PDO
 
         return $pdo;
     } catch (PDOException $e) {
-        die('Koneksi Database Gagal: ' . htmlspecialchars($e->getMessage()));
+        error_log('DB connect failed: '.$e->getMessage());
+        http_response_code(500);
+        die('Koneksi Database Gagal. Silakan coba lagi nanti.');
     }
 }
 

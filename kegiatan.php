@@ -1116,6 +1116,7 @@ foreach ($calEventsRaw as $ce) {
     <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <!-- Custom Script -->
     <script>
         AOS.init({
@@ -1263,7 +1264,7 @@ foreach ($calEventsRaw as $ce) {
             document.getElementById('kegModalDate').textContent = data.tanggal || '';
             document.getElementById('kegModalPenulis').textContent = data.penulis || '';
             document.getElementById('kegModalImg').src = data.gambar || '';
-            document.getElementById('kegModalKonten').innerHTML = data.konten || data.ringkasan || '';
+            document.getElementById('kegModalKonten').innerHTML = (window.DOMPurify ? DOMPurify.sanitize(data.konten || data.ringkasan || '', {USE_PROFILES:{html:true}}) : (data.konten || data.ringkasan || ''));
             var wrap = document.getElementById('kegModalDaftarWrap');
             var btn = document.getElementById('kegModalDaftarBtn');
             if (wrap && btn) {

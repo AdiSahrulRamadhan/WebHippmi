@@ -30,7 +30,8 @@ unset($_SESSION['flash_success'], $_SESSION['flash_error'], $_SESSION['featured_
 | PROSES HAPUS BERITA
 |--------------------------------------------------------------------------
 */
-if ($action === 'delete' && $id > 0) {
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
+    requireCsrf();
     $stmt = $pdo->prepare("SELECT * FROM `berita` WHERE `id` = :id LIMIT 1");
     $stmt->execute(['id' => $id]);
     $item = $stmt->fetch();
@@ -56,6 +57,7 @@ if ($action === 'delete' && $id > 0) {
 }
 
 if ($action === 'bulk_delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $ids = $_POST['ids'] ?? [];
     if (!is_array($ids)) $ids = [$ids];
     $ids = array_values(array_filter(array_map('intval', $ids), fn($v) => $v > 0));
@@ -87,7 +89,8 @@ if ($action === 'bulk_delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 | PROSES TOGGLE BERITA UTAMA (FEATURED)
 |--------------------------------------------------------------------------
 */
-if ($action === 'toggle_featured' && $id > 0) {
+if ($action === 'toggle_featured' && $_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
+    requireCsrf();
     $stmt = $pdo->prepare("SELECT is_featured, judul FROM `berita` WHERE `id` = :id LIMIT 1");
     $stmt->execute(['id' => $id]);
     $item = $stmt->fetch();
@@ -109,7 +112,8 @@ if ($action === 'toggle_featured' && $id > 0) {
     redirectTo('berita.php');
 }
 
-if ($action === 'delete_kategori') {
+if ($action === 'delete_kategori' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $katDel = trim((string) ($_GET['kategori'] ?? ''));
     $kategoriDefaultDel = ['Pendidikan', 'Workshop', 'Seminar', 'Kolaborasi', 'Advokasi', 'Pengumuman'];
     if ($katDel === '' || in_array($katDel, $kategoriDefaultDel, true)) {
@@ -167,6 +171,7 @@ if ($action === 'edit' && $id > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'], true)) {
+    requireCsrf();
     $formData['judul'] = trim((string) ($_POST['judul'] ?? ''));
     $katInput = trim((string) ($_POST['kategori'] ?? ''));
     $katBaru = trim((string) ($_POST['kategori_baru'] ?? ''));
@@ -179,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
     $formData['penulis'] = trim((string) ($_POST['penulis'] ?? 'Admin HIPPMI'));
     $formData['penulis_avatar'] = trim((string) ($_POST['penulis_avatar'] ?? ''));
     $formData['ringkasan'] = trim((string) ($_POST['ringkasan'] ?? ''));
-    $formData['konten'] = trim((string) ($_POST['konten'] ?? ''));
+    $formData['konten'] = sanitizeKonten(trim((string) ($_POST['konten'] ?? '')));
     $formData['tanggal'] = trim((string) ($_POST['tanggal'] ?? date('Y-m-d')));
     $formData['is_featured'] = isset($_POST['is_featured']) ? 1 : 0;
     $formData['status'] = in_array($_POST['status'] ?? '', ['published', 'draft'], true) ? $_POST['status'] : 'published';
@@ -221,18 +226,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
         } elseif ($file['size'] > 5 * 1024 * 1024) {
             $formErrors[] = 'Ukuran gambar maksimal 5 MB.';
         } else {
-            $uploadDir = __DIR__ . '/../uploads/berita/';
-            if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
-            $newFileName = 'berita_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            $destination = $uploadDir . $newFileName;
-            if (move_uploaded_file($file['tmp_name'], $destination)) {
-                $uploadedGambarPath = 'uploads/berita/' . $newFileName;
-                if ($action === 'edit' && !empty($existing['gambar']) && str_starts_with($existing['gambar'], 'uploads/berita/')) {
-                    $oldFilePath = __DIR__ . '/../' . $existing['gambar'];
-                    if (file_exists($oldFilePath)) @unlink($oldFilePath);
+            $mimeOk = true;
+            if (function_exists('finfo_open')) {
+                $finfoTmp = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeTmp = $finfoTmp ? finfo_file($finfoTmp, $file['tmp_name']) : '';
+                if ($finfoTmp) finfo_close($finfoTmp);
+                if (!in_array($mimeTmp, ['image/jpeg','image/png','image/webp','image/gif'], true)) {
+                    $formErrors[] = 'File bukan gambar valid (MIME: '.htmlspecialchars($mimeTmp).').';
+                    $mimeOk = false;
+                } elseif (@getimagesize($file['tmp_name']) === false) {
+                    $formErrors[] = 'File gambar tidak valid.';
+                    $mimeOk = false;
                 }
-            } else {
-                $formErrors[] = 'Gagal mengunggah file gambar ke server.';
+            }
+            if ($mimeOk) {
+                $uploadDir = __DIR__ . '/../uploads/berita/';
+                if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+                $newFileName = 'berita_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                $destination = $uploadDir . $newFileName;
+                if (move_uploaded_file($file['tmp_name'], $destination)) {
+                    $uploadedGambarPath = 'uploads/berita/' . $newFileName;
+                    if ($action === 'edit' && !empty($existing['gambar']) && str_starts_with($existing['gambar'], 'uploads/berita/')) {
+                        $oldFilePath = __DIR__ . '/../' . $existing['gambar'];
+                        if (file_exists($oldFilePath)) @unlink($oldFilePath);
+                    }
+                } else {
+                    $formErrors[] = 'Gagal mengunggah file gambar ke server.';
+                }
             }
         }
     }
@@ -257,24 +277,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
         } elseif ($avFile['size'] > 2 * 1024 * 1024) {
             $formErrors[] = 'Ukuran foto penulis maksimal 2 MB.';
         } else {
-            $avDir = __DIR__ . '/../uploads/penulis/';
-            if (!is_dir($avDir)) @mkdir($avDir, 0777, true);
-            $avName = 'penulis_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $avExt;
-            $avDest = $avDir . $avName;
-            if (move_uploaded_file($avFile['tmp_name'], $avDest)) {
-                $uploadedAvatarPath = 'uploads/penulis/' . $avName;
-                if ($action === 'edit' && !empty($existing['penulis_avatar']) && str_starts_with($existing['penulis_avatar'], 'uploads/penulis/')) {
-                    $oldAv = __DIR__ . '/../' . $existing['penulis_avatar'];
-                    if (file_exists($oldAv)) @unlink($oldAv);
+            $mimeAvOk = true;
+            if (function_exists('finfo_open')) {
+                $fAv = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeAv = $fAv ? finfo_file($fAv, $avFile['tmp_name']) : '';
+                if ($fAv) finfo_close($fAv);
+                if (!in_array($mimeAv, ['image/jpeg','image/png','image/webp','image/gif'], true)) {
+                    $formErrors[] = 'Foto penulis bukan gambar valid.';
+                    $mimeAvOk = false;
+                } elseif (@getimagesize($avFile['tmp_name']) === false) {
+                    $formErrors[] = 'Foto penulis tidak valid.';
+                    $mimeAvOk = false;
                 }
-            } else {
-                $formErrors[] = 'Gagal mengunggah foto penulis.';
+            }
+            if ($mimeAvOk) {
+                $avDir = __DIR__ . '/../uploads/penulis/';
+                if (!is_dir($avDir)) @mkdir($avDir, 0777, true);
+                $avName = 'penulis_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $avExt;
+                $avDest = $avDir . $avName;
+                if (move_uploaded_file($avFile['tmp_name'], $avDest)) {
+                    $uploadedAvatarPath = 'uploads/penulis/' . $avName;
+                    if ($action === 'edit' && !empty($existing['penulis_avatar']) && str_starts_with($existing['penulis_avatar'], 'uploads/penulis/')) {
+                        $oldAv = __DIR__ . '/../' . $existing['penulis_avatar'];
+                        if (file_exists($oldAv)) @unlink($oldAv);
+                    }
+                } else {
+                    $formErrors[] = 'Gagal mengunggah foto penulis.';
+                }
             }
         }
     }
-    if ($removeExistingAvatar) {
-        $formData['penulis_avatar'] = '';
-    } elseif ($uploadedAvatarPath !== null) {
+    if ($uploadedAvatarPath !== null) {
         $formData['penulis_avatar'] = $uploadedAvatarPath;
     } elseif ($customUrlAvatar !== '') {
         $formData['penulis_avatar'] = $customUrlAvatar;
@@ -1904,7 +1937,7 @@ sort($kategoriList);
                              <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;<?= $isDefault ? 'background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb;' : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;' ?>">
                                  <?= escape($kItem); ?>
                                  <?php if (!$isDefault): ?>
-                                     <a href="berita.php?action=delete_kategori&kategori=<?= urlencode($kItem); ?>" onclick="return confirm('Hapus kategori &quot;<?= addslashes($kItem); ?>&quot;? Berita dengan kategori ini akan dipindah ke Pendidikan.')" style="width:18px;height:18px;border-radius:50%;background:rgba(37,99,235,0.12);display:inline-flex;align-items:center;justify-content:center;color:#2563eb;text-decoration:none;" title="Hapus kategori"><i class="fa-solid fa-xmark" style="font-size:10px;"></i></a>
+                                      <form method="post" action="berita.php?action=delete_kategori&kategori=<?= urlencode($kItem); ?>" style="display:inline;" onsubmit="return confirm('Hapus kategori &quot;<?= addslashes($kItem); ?>&quot;? Berita dengan kategori ini akan dipindah ke Pendidikan.')"><?= csrfField() ?><button type="submit" style="width:18px;height:18px;border-radius:50%;background:rgba(37,99,235,0.12);display:inline-flex;align-items:center;justify-content:center;color:#2563eb;border:0;cursor:pointer;" title="Hapus kategori"><i class="fa-solid fa-xmark" style="font-size:10px;"></i></button></form>
                                  <?php else: ?>
                                      <i class="fa-solid fa-lock" style="font-size:9px;opacity:0.45;" title="Kategori bawaan"></i>
                                  <?php endif; ?>
@@ -1922,7 +1955,7 @@ sort($kategoriList);
                      </div>
 
                      <!-- Table Data -->
-                     <form id="bulkDeleteForm" method="post" action="berita.php?action=bulk_delete">
+                      <form id="bulkDeleteForm" method="post" action="berita.php?action=bulk_delete"><?= csrfField() ?>
                      <div class="table-responsive">
                         <div style="display:flex; align-items:center; gap:8px; padding:8px 14px; border-bottom:1px solid var(--border); background:#fafbfc; position:sticky; left:0; min-width:980px;">
                             <i class="fa-solid fa-arrows-left-right" style="color: var(--muted);"></i>
@@ -1997,9 +2030,7 @@ sort($kategoriList);
                                             </td>
                                             <td style="text-align:center;font-weight:600;color:var(--dark);"><i class="far fa-eye" style="opacity:0.45;margin-right:4px;"></i><?= number_format((int)($row['views'] ?? 0)); ?></td>
                                             <td style="text-align:center;">
-                                                <a href="berita.php?action=toggle_featured&id=<?= $row['id']; ?>" class="btn-action featured <?= $row['is_featured'] ? 'active' : ''; ?>" title="<?= $row['is_featured'] ? 'Berita Utama (Klik untuk batalkan)' : 'Jadikan Berita Utama'; ?>">
-                                                    <i class="fa-<?= $row['is_featured'] ? 'solid' : 'regular'; ?> fa-star"></i>
-                                                </a>
+                                                <form method="post" action="berita.php?action=toggle_featured&id=<?= $row['id']; ?>" style="display:inline;"><?= csrfField() ?><button type="submit" class="btn-action featured <?= $row['is_featured'] ? 'active' : ''; ?>" title="<?= $row['is_featured'] ? 'Berita Utama (Klik untuk batalkan)' : 'Jadikan Berita Utama'; ?>"><i class="fa-<?= $row['is_featured'] ? 'solid' : 'regular'; ?> fa-star"></i></button></form>
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="action-buttons" style="justify-content: flex-end;">
@@ -2048,7 +2079,7 @@ sort($kategoriList);
                         </div>
                     </div>
 
-                    <form method="post" action="berita.php?action=<?= $action; ?><?= $action === 'edit' ? '&id=' . $id : ''; ?>" enctype="multipart/form-data">
+                    <form method="post" action="berita.php?action=<?= $action; ?><?= $action === 'edit' ? '&id=' . $id : ''; ?>" enctype="multipart/form-data"><?= csrfField() ?>
                         <div class="form-grid">
                             <!-- Kolom Kiri: Konten Utama -->
                             <div class="form-left">
@@ -2212,10 +2243,7 @@ sort($kategoriList);
         </div>
         <h4>Hapus Berita?</h4>
         <p>Apakah Anda yakin ingin menghapus berita <strong id="deleteNewsTitle">...</strong>? Tindakan ini tidak dapat dibatalkan.</p>
-        <div class="modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeDeleteModal()" style="justify-content: center;">Batal</button>
-            <a href="#" id="confirmDeleteBtn" class="btn-primary" style="background: var(--primary); justify-content: center;">Ya, Hapus</a>
-        </div>
+        <form id="deleteForm" method="post" action=""><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeDeleteModal()" style="justify-content: center;">Batal</button><button type="submit" class="btn-primary" style="background: var(--primary); justify-content: center;">Ya, Hapus</button></div></form>
     </div>
 </div>
 
@@ -2281,11 +2309,11 @@ sort($kategoriList);
     // Modal Hapus
     const deleteModal = document.getElementById('deleteModal');
     const deleteNewsTitle = document.getElementById('deleteNewsTitle');
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const deleteForm = document.getElementById('deleteForm');
 
     function openDeleteModal(id, title) {
         deleteNewsTitle.textContent = title;
-        confirmDeleteBtn.href = 'berita.php?action=delete&id=' + id;
+        deleteForm.action = 'berita.php?action=delete&id=' + id;
         deleteModal.classList.add('show');
     }
 

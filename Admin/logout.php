@@ -11,6 +11,12 @@ require_once __DIR__ . '/config.php';
 */
 $_SESSION = [];
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit('Method Not Allowed');
+}
+requireCsrf();
+
 if (ini_get('session.use_cookies')) {
     $cookieParameters = session_get_cookie_params();
 

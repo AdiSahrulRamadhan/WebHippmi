@@ -1544,6 +1544,7 @@ $yearList = $stmtYears->fetchAll(PDO::FETCH_COLUMN);
     <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
     <!-- Swiper JS -->
     <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <!-- Custom Script -->
     <script>
         function openNewsModal(data) {
@@ -1553,7 +1554,7 @@ $yearList = $stmtYears->fetchAll(PDO::FETCH_COLUMN);
             document.getElementById('modalAuthor').textContent = data.penulis || 'Admin HIPPMI';
             document.getElementById('modalDate').textContent = data.tanggal || '';
             document.getElementById('modalImage').src = data.gambar || '';
-            document.getElementById('modalBodyContent').innerHTML = data.konten || '';
+            document.getElementById('modalBodyContent').innerHTML = (window.DOMPurify ? DOMPurify.sanitize(data.konten || '', {USE_PROFILES:{html:true}}) : (data.konten || ''));
             var vEl = document.getElementById('modalViews');
             var cur = parseInt(data.views || 0, 10);
             vEl.textContent = cur;

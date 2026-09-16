@@ -18,7 +18,8 @@ $flashSuccess = $_SESSION['flash_success'] ?? '';
 $flashError = $_SESSION['flash_error'] ?? '';
 unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
-if ($action === 'delete' && $id > 0) {
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
+    requireCsrf();
     if ($adminId > 0 && $id === $adminId) {
         $_SESSION['flash_error'] = 'Tidak dapat menghapus akun yang sedang login.';
         redirectTo('admin_users.php');
@@ -41,6 +42,7 @@ if ($action === 'delete' && $id > 0) {
 }
 
 if ($action === 'bulk_delete' && $_SERVER['REQUEST_METHOD']==='POST') {
+    requireCsrf();
     $ids = $_POST['ids'] ?? [];
     if(!is_array($ids)) $ids=[$ids];
     $ids=array_values(array_filter(array_map('intval',$ids),fn($v)=>$v>0));
@@ -68,13 +70,14 @@ if($action==='edit' && $id>0){
 }
 
 if($_SERVER['REQUEST_METHOD']==='POST' && in_array($action,['create','edit'],true)){
+    requireCsrf();
     $formData['username']=trim((string)($_POST['username']??''));
     $formData['password']=(string)($_POST['password']??'');
     $formData['role']=in_array($_POST['role']??'admin',['admin','super_admin'],true)?$_POST['role']:'admin';
     if($formData['username']==='') $formErrors[]='Username wajib diisi.';
     elseif(!preg_match('/^[a-zA-Z0-9_.-]{3,30}$/',$formData['username'])) $formErrors[]='Username 3-30 karakter, huruf/angka/._- saja.';
     if($action==='create' && $formData['password']==='') $formErrors[]='Password wajib diisi.';
-    if($formData['password']!=='' && strlen($formData['password'])<6) $formErrors[]='Password minimal 6 karakter.';
+    if($formData['password']!=='' && strlen($formData['password'])<8) $formErrors[]='Password minimal 8 karakter.';
     $chk=$pdo->prepare("SELECT id FROM `admin_users` WHERE LOWER(username)=LOWER(:u)".($action==='edit'?" AND id!=:id":"")." LIMIT 1");
     $p=['u'=>$formData['username']]; if($action==='edit') $p['id']=$id; $chk->execute($p);
     if($chk->fetch()) $formErrors[]='Username sudah digunakan.';
@@ -841,7 +844,7 @@ $statAdmin=(int)$pdo->query("SELECT COUNT(*) FROM `admin_users` WHERE `role`='ad
 <div class="panel">
 <div class="panel-header"><div><h3><?= $action==='create'?'Tambah Admin':'Edit Admin' ?></h3><p><?= $action==='create'?'Buat akun admin baru':'Perbarui username / password / role' ?></p></div><a href="admin_users.php" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Kembali</a></div>
 <?php if(!empty($formErrors)): ?><div style="margin:20px 26px 0;padding:14px 16px;background:#fff0f1;border:1px solid #fecdd3;border-radius:12px;color:#e30a17;font-size:12px;"><strong><i class="fa-solid fa-triangle-exclamation"></i> Periksa kembali:</strong><ul style="margin:8px 0 0;padding-left:18px;"><?php foreach($formErrors as $e): ?><li><?= escape($e) ?></li><?php endforeach; ?></ul></div><?php endif; ?>
-<form method="post" action="admin_users.php?action=<?= $action ?><?= $action==='edit'?'&id='.$id:'' ?>">
+<form method="post" action="admin_users.php?action=<?= $action ?><?= $action==='edit'?'&id='.$id:'' ?>"><?= csrfField() ?>
 <div class="form-grid">
 <div>
 <div class="form-group"><label>Username <span>*</span></label><input type="text" name="username" class="form-control" placeholder="contoh: admin2" value="<?= escape($formData['username']) ?>" required></div>
@@ -873,7 +876,7 @@ $statAdmin=(int)$pdo->query("SELECT COUNT(*) FROM `admin_users` WHERE `role`='ad
 <a href="admin_users.php" class="btn-secondary">Reset</a>
 </form>
 </div>
-<form method="post" action="admin_users.php?action=bulk_delete" id="bulkDeleteForm">
+<form method="post" action="admin_users.php?action=bulk_delete" id="bulkDeleteForm"><?= csrfField() ?>
 <div class="bulk-bar" id="bulkBar"><div><strong id="bulkCount">0</strong> dipilih (tidak termasuk akun sendiri)</div><div style="display:flex;gap:8px;"><button type="button" class="btn-secondary" style="padding:7px 14px;font-size:12px;" id="bulkCancel">Batal</button><button type="submit" class="btn-primary" style="background:#e30a17;padding:7px 14px;font-size:12px;"><i class="fa-solid fa-trash"></i> Hapus Terpilih</button></div></div>
 <div class="table-responsive">
 <table class="data-table"><thead><tr><th class="checkbox-cell" style="width:72px;text-align:center;"><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);"><input type="checkbox" id="selectAll" title="Pilih semua"><span>All</span></label></th><th class="sortable"><a href="<?= escape(adminUserSortUrl('id',$sortKey,$sortDir)) ?>">ID<?= adminUserSortIcon('id',$sortKey,$sortDir) ?></a></th><th class="sortable"><a href="<?= escape(adminUserSortUrl('username',$sortKey,$sortDir)) ?>">Username<?= adminUserSortIcon('username',$sortKey,$sortDir) ?></a></th><th class="sortable"><a href="<?= escape(adminUserSortUrl('role',$sortKey,$sortDir)) ?>">Role<?= adminUserSortIcon('role',$sortKey,$sortDir) ?></a></th><th class="sortable"><a href="<?= escape(adminUserSortUrl('last_login_at',$sortKey,$sortDir)) ?>">Login Terakhir<?= adminUserSortIcon('last_login_at',$sortKey,$sortDir) ?></a></th><th class="sortable"><a href="<?= escape(adminUserSortUrl('created_at',$sortKey,$sortDir)) ?>">Dibuat<?= adminUserSortIcon('created_at',$sortKey,$sortDir) ?></a></th><th>Aksi</th></tr></thead><tbody>
@@ -900,8 +903,8 @@ $statAdmin=(int)$pdo->query("SELECT COUNT(*) FROM `admin_users` WHERE `role`='ad
 </div>
 </div>
 </div>
-<div class="modal-backdrop" id="deleteModal"><div class="modal-box"><div class="modal-icon-del"><i class="fa-solid fa-trash"></i></div><h4>Hapus Admin?</h4><p id="deleteModalText">Hapus permanen.</p><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeDeleteModal()">Batal</button><a href="#" id="confirmDeleteBtn" class="btn-primary" style="justify-content:center;background:var(--primary);">Hapus</a></div></div></div>
-<div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar?</h4><p>Sesi diakhiri.</p><form method="post" action="logout.php"><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
+<div class="modal-backdrop" id="deleteModal"><div class="modal-box"><div class="modal-icon-del"><i class="fa-solid fa-trash"></i></div><h4>Hapus Admin?</h4><p id="deleteModalText">Hapus permanen.</p><form id="deleteForm" method="post" action=""><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeDeleteModal()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;background:var(--primary);">Hapus</button></div></form></div></div>
+<div class="modal-backdrop" id="logoutModal" style="z-index:3000;"><div class="modal-box" style="max-width:420px;"><button type="button" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:#f3f3f5;cursor:pointer;" onclick="closeLogout()"><i class="fa-solid fa-xmark"></i></button><div class="modal-icon-del" style="background:#fff0f1;color:var(--primary);border:1px solid #ffd0d3;"><i class="fa-solid fa-right-from-bracket"></i></div><h4>Keluar?</h4><p>Sesi diakhiri.</p><form method="post" action="logout.php"><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" style="justify-content:center;" onclick="closeLogout()">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;">Ya, Keluar</button></div></form></div></div>
 <script>
 const sidebar=document.getElementById('adminSidebar'),overlay=document.getElementById('sidebarOverlay'),menuToggle=document.getElementById('menuToggle'),sidebarClose=document.getElementById('sidebarClose'),collapseToggle=document.getElementById('collapseToggle'),collapseIcon=document.getElementById('collapseIcon');
 function isDesktop(){return window.innerWidth>900}
@@ -917,7 +920,7 @@ const openLogoutBtn=document.getElementById('openLogoutBtn'),logoutModal=documen
 if(openLogoutBtn)openLogoutBtn.addEventListener('click',()=>{logoutModal.classList.add('show');});
 function closeLogout(){logoutModal.classList.remove('show');}
 if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
-function openDeleteModal(btn){const url=btn.getAttribute('data-delete-url'),title=btn.getAttribute('data-delete-title');document.getElementById('confirmDeleteBtn').href=url;document.getElementById('deleteModalText').textContent='Hapus admin "'+title+'" ?';document.getElementById('deleteModal').classList.add('show');}
+function openDeleteModal(btn){const url=btn.getAttribute('data-delete-url'),title=btn.getAttribute('data-delete-title');document.getElementById('deleteForm').action=url;document.getElementById('deleteModalText').textContent='Hapus admin "'+title+'" ?';document.getElementById('deleteModal').classList.add('show');}
 function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('show');}
 document.getElementById('deleteModal').addEventListener('click',e=>{if(e.target===document.getElementById('deleteModal'))closeDeleteModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDeleteModal();closeLogout();closeSidebar();}});

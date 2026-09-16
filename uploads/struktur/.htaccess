@@ -1,0 +1,17 @@
+# Block PHP execution in uploads
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps|pl|py|jsp|asp|sh|cgi|shtml)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_php5.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+Options -ExecCGI -Indexes
+RemoveHandler .php .phtml .php3 .php4 .php5
+RemoveType .php .phtml .php3 .php4 .php5
+Header set X-Content-Type-Options "nosniff"
