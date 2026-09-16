@@ -94,10 +94,10 @@ $stmtList->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmtList->execute();
 $newsList = $stmtList->fetchAll();
 
-// Query Kegiatan Mendatang - maks 3 terdekat, tanggal >= hari ini
+// Query Kegiatan Mendatang - hanya tipe kegiatan
 $stmtUpcoming = $pdo->prepare("
     SELECT * FROM `berita` 
-    WHERE `status` = 'published'
+    WHERE `status` = 'published' AND `tipe`='kegiatan'
     AND `tanggal` >= CURDATE()
     ORDER BY `tanggal` ASC, `id` ASC
     LIMIT 3

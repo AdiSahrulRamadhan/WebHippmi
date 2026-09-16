@@ -98,7 +98,7 @@ if ($action === 'toggle_featured' && $_SERVER['REQUEST_METHOD'] === 'POST' && $i
     if ($item) {
         $newStatus = $item['is_featured'] ? 0 : 1;
         if ($newStatus === 1) {
-            $cntFeatured = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `is_featured` = 1")->fetchColumn();
+            $cntFeatured = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `is_featured` = 1 AND `tipe`='berita'")->fetchColumn();
             if ($cntFeatured >= 5) {
                 $_SESSION['flash_error'] = 'Maksimal 5 Berita Utama sudah tercapai. Nonaktifkan salah satu terlebih dahulu.';
                 $_SESSION['featured_limit_popup'] = 1;
@@ -171,7 +171,8 @@ if ($action === 'edit' && $id > 0) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'], true)) {
-    requireCsrf();
+    if (!verifyCsrf()) $formErrors[] = 'Sesi habis / CSRF tidak valid. Silakan refresh halaman dan coba lagi.';
+    if (empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) $formErrors[] = 'Data terlalu besar atau gagal terkirim. Coba file lebih kecil.';
     $formData['judul'] = trim((string) ($_POST['judul'] ?? ''));
     $katInput = trim((string) ($_POST['kategori'] ?? ''));
     $katBaru = trim((string) ($_POST['kategori_baru'] ?? ''));
@@ -207,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
         $formErrors[] = 'Tanggal berita wajib diisi.';
     }
     if (($formData['is_featured'] ?? 0) === 1) {
-        $cntF = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `is_featured` = 1")->fetchColumn();
+        $cntF = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `is_featured` = 1 AND `tipe`='berita'")->fetchColumn();
         $isAlreadyFeatured = ($action === 'edit' && !empty($existing['is_featured']) && (int)$existing['is_featured'] === 1);
         if (!$isAlreadyFeatured && $cntF >= 5) {
             $formErrors[] = 'Maksimal 5 Berita Utama sudah tercapai. Nonaktifkan salah satu Berita Utama terlebih dahulu sebelum menambah yang baru.';
@@ -315,98 +316,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'edit'
         $formData['penulis_avatar'] = $existing['penulis_avatar'] ?? '';
     }
 
-    // Simpan ke database jika tidak ada error
+    if (empty($formErrors) && $formData['tanggal'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['tanggal'])) {
+        $formErrors[] = 'Format tanggal tidak valid (YYYY-MM-DD).';
+    }
     if (empty($formErrors)) {
-        $slug = createSlug($formData['judul']);
-
-        // Cek keunikan slug
-        $slugCheckQuery = "SELECT id FROM `berita` WHERE `slug` = :slug" . ($action === 'edit' ? " AND `id` != :id" : "") . " LIMIT 1";
-        $slugStmt = $pdo->prepare($slugCheckQuery);
-        $params = ['slug' => $slug];
-        if ($action === 'edit') {
-            $params['id'] = $id;
-        }
-        $slugStmt->execute($params);
-        if ($slugStmt->fetch()) {
-            $slug .= '-' . time();
-        }
-
-        if ($action === 'create') {
-            $insertQuery = "
-                INSERT INTO `berita` (
-                    `judul`, `slug`, `kategori`, `tipe`, `penulis`, `penulis_avatar`,
-                    `ringkasan`, `konten`, `gambar`, `tanggal`, `is_featured`, `status`
-                ) VALUES (
-                    :judul, :slug, :kategori, :tipe, :penulis, :penulis_avatar,
-                    :ringkasan, :konten, :gambar, :tanggal, :is_featured, :status
-                )
-            ";
-            $insStmt = $pdo->prepare($insertQuery);
-            $insStmt->execute([
-                'judul' => $formData['judul'],
-                'slug' => $slug,
-                'kategori' => $formData['kategori'],
-                'tipe' => $formData['tipe'],
-                'penulis' => $formData['penulis'],
-                'penulis_avatar' => $formData['penulis_avatar'],
-                'ringkasan' => $formData['ringkasan'],
-                'konten' => $formData['konten'],
-                'gambar' => $formData['gambar'],
-                'tanggal' => $formData['tanggal'],
-                'is_featured' => $formData['is_featured'],
-                'status' => $formData['status'],
-            ]);
-            $_SESSION['flash_success'] = ($formData['tipe']==='kegiatan' ? 'Kegiatan' : 'Berita') . ' baru berhasil diterbitkan!';
-            redirectTo('berita.php');
-        } elseif ($action === 'edit') {
-            $updateQuery = "
-                UPDATE `berita` SET
-                    `judul` = :judul,
-                    `slug` = :slug,
-                    `kategori` = :kategori,
-                    `tipe` = :tipe,
-                    `penulis` = :penulis,
-                    `penulis_avatar` = :penulis_avatar,
-                    `ringkasan` = :ringkasan,
-                    `konten` = :konten,
-                    `gambar` = :gambar,
-                    `tanggal` = :tanggal,
-                    `is_featured` = :is_featured,
-                    `status` = :status
-                WHERE `id` = :id
-            ";
-            $updStmt = $pdo->prepare($updateQuery);
-            $updStmt->execute([
-                'judul' => $formData['judul'],
-                'slug' => $slug,
-                'kategori' => $formData['kategori'],
-                'tipe' => $formData['tipe'],
-                'penulis' => $formData['penulis'],
-                'penulis_avatar' => $formData['penulis_avatar'] !== '' ? $formData['penulis_avatar'] : null,
-                'ringkasan' => $formData['ringkasan'],
-                'konten' => $formData['konten'],
-                'gambar' => $formData['gambar'] !== '' ? $formData['gambar'] : null,
-                'tanggal' => $formData['tanggal'],
-                'is_featured' => $formData['is_featured'],
-                'status' => $formData['status'],
-                'id' => $id,
-            ]);
-            $oldGambar = (string)($existing['gambar'] ?? '');
-            if ($removeExistingGambar && $oldGambar !== '' && str_starts_with($oldGambar,'uploads/berita/')) {
-                $oldFile = __DIR__ . '/../' . $oldGambar;
-                if (file_exists($oldFile)) @unlink($oldFile);
+        try {
+            $slug = createSlug($formData['judul']);
+            $slugCheckQuery = "SELECT id FROM `berita` WHERE `slug` = :slug" . ($action === 'edit' ? " AND `id` != :id" : "") . " LIMIT 1";
+            $slugStmt = $pdo->prepare($slugCheckQuery);
+            $params = ['slug' => $slug];
+            if ($action === 'edit') $params['id'] = $id;
+            $slugStmt->execute($params);
+            if ($slugStmt->fetch()) $slug .= '-' . time();
+            if ($action === 'create') {
+                $insStmt = $pdo->prepare("INSERT INTO `berita` (`judul`,`slug`,`kategori`,`tipe`,`penulis`,`penulis_avatar`,`ringkasan`,`konten`,`gambar`,`tanggal`,`is_featured`,`status`) VALUES (:judul,:slug,:kategori,:tipe,:penulis,:penulis_avatar,:ringkasan,:konten,:gambar,:tanggal,:is_featured,:status)");
+                $insStmt->execute(['judul'=>$formData['judul'],'slug'=>$slug,'kategori'=>$formData['kategori'],'tipe'=>$formData['tipe'],'penulis'=>$formData['penulis'],'penulis_avatar'=>$formData['penulis_avatar'],'ringkasan'=>$formData['ringkasan'],'konten'=>$formData['konten'],'gambar'=>$formData['gambar'],'tanggal'=>$formData['tanggal'],'is_featured'=>$formData['is_featured'],'status'=>$formData['status']]);
+                $_SESSION['flash_success'] = 'Berita baru berhasil diterbitkan!';
+                redirectTo('berita.php');
+            } elseif ($action === 'edit') {
+                $updStmt = $pdo->prepare("UPDATE `berita` SET `judul`=:judul,`slug`=:slug,`kategori`=:kategori,`tipe`=:tipe,`penulis`=:penulis,`penulis_avatar`=:penulis_avatar,`ringkasan`=:ringkasan,`konten`=:konten,`gambar`=:gambar,`tanggal`=:tanggal,`is_featured`=:is_featured,`status`=:status WHERE `id`=:id");
+                $updStmt->execute(['judul'=>$formData['judul'],'slug'=>$slug,'kategori'=>$formData['kategori'],'tipe'=>$formData['tipe'],'penulis'=>$formData['penulis'],'penulis_avatar'=>$formData['penulis_avatar']!==''?$formData['penulis_avatar']:null,'ringkasan'=>$formData['ringkasan'],'konten'=>$formData['konten'],'gambar'=>$formData['gambar']!==''?$formData['gambar']:null,'tanggal'=>$formData['tanggal'],'is_featured'=>$formData['is_featured'],'status'=>$formData['status'],'id'=>$id]);
+                $oldGambar = (string)($existing['gambar'] ?? '');
+                if ($removeExistingGambar && $oldGambar!=='' && str_starts_with($oldGambar,'uploads/berita/')) { $oldFile=__DIR__.'/../'.$oldGambar; if(file_exists($oldFile)) @unlink($oldFile); }
+                if ($removeExistingAvatar) { $oldAv=(string)($existing['penulis_avatar']??''); if($oldAv!=='' && str_starts_with($oldAv,'uploads/penulis/')){ $oldAvFile=__DIR__.'/../'.$oldAv; if(file_exists($oldAvFile)) @unlink($oldAvFile); } }
+                $_SESSION['flash_success'] = 'Berita berhasil diperbarui!';
+                redirectTo('berita.php');
             }
-            if ($removeExistingAvatar) {
-                $oldAv = (string)($existing['penulis_avatar'] ?? '');
-                if ($oldAv !== '' && str_starts_with($oldAv,'uploads/penulis/')) {
-                    $oldAvFile = __DIR__ . '/../' . $oldAv;
-                    if (file_exists($oldAvFile)) @unlink($oldAvFile);
-                }
-            }
-
-            $_SESSION['flash_success'] = 'Berita berhasil diperbarui!';
-            redirectTo('berita.php');
-        }
+        } catch (Throwable $e) { error_log('berita save fail: '.$e->getMessage()); $formErrors[]='Gagal menyimpan: '.htmlspecialchars($e->getMessage()); if(isset($uploadedGambarPath) && $uploadedGambarPath && file_exists(__DIR__.'/../'.$uploadedGambarPath)) @unlink(__DIR__.'/../'.$uploadedGambarPath); if(isset($uploadedAvatarPath) && $uploadedAvatarPath && file_exists(__DIR__.'/../'.$uploadedAvatarPath)) @unlink(__DIR__.'/../'.$uploadedAvatarPath); }
     }
 }
 
@@ -458,11 +394,11 @@ function adminSortIcon(string $col, string $currentKey, string $currentDir): str
     return $currentDir === 'ASC' ? ' <i class="fa-solid fa-sort-up" style="margin-left:4px;color:var(--primary);"></i>' : ' <i class="fa-solid fa-sort-down" style="margin-left:4px;color:var(--primary);"></i>';
 }
 
-// Hitung statistik
-$statTotal = (int) $pdo->query("SELECT COUNT(*) FROM `berita`")->fetchColumn();
-$statPublished = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `status` = 'published'")->fetchColumn();
-$statDraft = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `status` = 'draft'")->fetchColumn();
-$statFeatured = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `is_featured` = 1")->fetchColumn();
+// Hitung statistik - filter tipe berita agar tidak tercampur kegiatan
+$statTotal = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `tipe`='berita'")->fetchColumn();
+$statPublished = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `tipe`='berita' AND `status` = 'published'")->fetchColumn();
+$statDraft = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `tipe`='berita' AND `status` = 'draft'")->fetchColumn();
+$statFeatured = (int) $pdo->query("SELECT COUNT(*) FROM `berita` WHERE `tipe`='berita' AND `is_featured` = 1")->fetchColumn();
 
 $kategoriDefault = ['Pendidikan', 'Workshop', 'Seminar', 'Kolaborasi', 'Advokasi', 'Pengumuman'];
 try {
@@ -1936,8 +1872,8 @@ sort($kategoriList);
                              <?php $isDefault = in_array($kItem, $kategoriDefault, true); ?>
                              <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;<?= $isDefault ? 'background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb;' : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;' ?>">
                                  <?= escape($kItem); ?>
-                                 <?php if (!$isDefault): ?>
-                                      <form method="post" action="berita.php?action=delete_kategori&kategori=<?= urlencode($kItem); ?>" style="display:inline;" onsubmit="return confirm('Hapus kategori &quot;<?= addslashes($kItem); ?>&quot;? Berita dengan kategori ini akan dipindah ke Pendidikan.')"><?= csrfField() ?><button type="submit" style="width:18px;height:18px;border-radius:50%;background:rgba(37,99,235,0.12);display:inline-flex;align-items:center;justify-content:center;color:#2563eb;border:0;cursor:pointer;" title="Hapus kategori"><i class="fa-solid fa-xmark" style="font-size:10px;"></i></button></form>
+                                  <?php if (!$isDefault): ?>
+                                       <button type="button" onclick="openKategoriDeleteModal('<?= addslashes($kItem); ?>')" style="width:18px;height:18px;border-radius:50%;background:rgba(37,99,235,0.12);display:inline-flex;align-items:center;justify-content:center;color:#2563eb;border:0;cursor:pointer;" title="Hapus kategori"><i class="fa-solid fa-xmark" style="font-size:10px;"></i></button>
                                  <?php else: ?>
                                      <i class="fa-solid fa-lock" style="font-size:9px;opacity:0.45;" title="Kategori bawaan"></i>
                                  <?php endif; ?>
@@ -2079,7 +2015,7 @@ sort($kategoriList);
                         </div>
                     </div>
 
-                    <form method="post" action="berita.php?action=<?= $action; ?><?= $action === 'edit' ? '&id=' . $id : ''; ?>" enctype="multipart/form-data"><?= csrfField() ?>
+                    <form id="beritaForm" method="post" action="berita.php?action=<?= $action; ?><?= $action === 'edit' ? '&id=' . $id : ''; ?>" enctype="multipart/form-data" novalidate><?= csrfField() ?>
                         <div class="form-grid">
                             <!-- Kolom Kiri: Konten Utama -->
                             <div class="form-left">
@@ -2095,7 +2031,7 @@ sort($kategoriList);
 
                                 <div class="form-group">
                                     <label for="konten">Isi Lengkap Berita <span>*</span></label>
-                                    <textarea id="konten" name="konten" class="form-control" rows="12" placeholder="Tulis isi berita lengkap di sini (dapat menggunakan paragraf atau teks html sederhana)..." required><?= escape($formData['konten']); ?></textarea>
+                                    <textarea id="konten" name="konten" class="form-control" rows="12" placeholder="Tulis isi berita lengkap di sini (dapat menggunakan paragraf atau teks html sederhana)..."><?= escape($formData['konten']); ?></textarea>
                                     <small style="color: var(--muted); display: block; margin-top: 6px; font-size: 11px;">
                                         Tips: Gunakan pemisah paragraf untuk memudahkan pengunjung membaca berita.
                                     </small>
@@ -2203,12 +2139,11 @@ sort($kategoriList);
                                     </div>
                                 </div>
 
-                                <div style="display: flex; gap: 10px;">
-                                    <button type="submit" class="btn-primary" style="flex: 1; justify-content: center; height: 46px;">
-                                        <i class="fa-solid fa-floppy-disk"></i>
-                                        <span><?= $action === 'create' ? 'Terbitkan Berita' : 'Simpan Perubahan'; ?></span>
-                                    </button>
-                                </div>
+                                <button type="submit" class="btn-primary" style="width:100%;justify-content:center;padding:13px;">
+                                    <i class="fa-solid fa-floppy-disk"></i>
+                                    <span><?= $action === 'create' ? 'Terbitkan Berita' : 'Simpan Perubahan'; ?></span>
+                                </button>
+                                <a href="berita.php" class="btn-secondary" style="width:100%;justify-content:center;margin-top:10px;">Batal</a>
                             </div>
                         </div>
                     </form>
@@ -2232,6 +2167,16 @@ sort($kategoriList);
         <div class="modal-actions" style="grid-template-columns:1fr;">
             <button type="button" class="btn-primary" style="justify-content:center;" onclick="closeLimitModal()">Mengerti</button>
         </div>
+    </div>
+</div>
+
+<!-- Modal Hapus Kategori -->
+<div class="modal-backdrop" id="kategoriDeleteModal" style="z-index:2145;">
+    <div class="modal-box">
+        <div class="modal-icon-del" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;"><i class="fa-solid fa-tag"></i></div>
+        <h4>Hapus Kategori?</h4>
+        <p>Apakah Anda yakin ingin menghapus kategori <strong id="kategoriDeleteName">...</strong>? Berita dengan kategori ini akan dipindah ke <strong>Pendidikan</strong>.</p>
+        <form id="kategoriDeleteForm" method="post" action=""><?= csrfField() ?><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeKategoriDeleteModal()" style="justify-content:center;">Batal</button><button type="submit" class="btn-primary" style="justify-content:center;background:var(--primary);">Ya, Hapus</button></div></form>
     </div>
 </div>
 
@@ -2320,6 +2265,17 @@ sort($kategoriList);
     function closeDeleteModal() {
         deleteModal.classList.remove('show');
     }
+    function openKategoriDeleteModal(name){
+        document.getElementById('kategoriDeleteName').textContent = name;
+        document.getElementById('kategoriDeleteForm').action = 'berita.php?action=delete_kategori&kategori=' + encodeURIComponent(name);
+        document.getElementById('kategoriDeleteModal').classList.add('show');
+    }
+    function closeKategoriDeleteModal(){ document.getElementById('kategoriDeleteModal').classList.remove('show'); }
+    (function(){
+        var km=document.getElementById('kategoriDeleteModal');
+        if(km) km.addEventListener('click', function(e){ if(e.target===km) closeKategoriDeleteModal(); });
+        window.addEventListener('keydown', function(e){ if(e.key==='Escape'){ var km2=document.getElementById('kategoriDeleteModal'); if(km2&&km2.classList.contains('show')) closeKategoriDeleteModal(); }});
+    })();
 
     // Image preview
     function previewUploadImage(input) {
@@ -2529,15 +2485,25 @@ function closeLogout(){logoutModal.classList.remove('show');}
 if(logoutModal) logoutModal.addEventListener('click',e=>{if(e.target===logoutModal)closeLogout()});
 document.addEventListener('DOMContentLoaded', function(){
     const el = document.getElementById('konten');
-    if(!el || typeof ClassicEditor === 'undefined') return;
-    ClassicEditor.create(el, {
-        placeholder: 'Tulis isi lengkap berita di sini...',
-        toolbar: ['heading','|','bold','italic','underline','link','bulletedList','numberedList','blockQuote','insertTable','undo','redo']
-    }).then(editor=>{
-        window.beritaEditor = editor;
-        const form = el.closest('form');
-        if(form) form.addEventListener('submit', ()=>{ el.value = editor.getData(); });
-    }).catch(err=>console.warn('CKEditor failed', err));
+    const form = document.getElementById('beritaForm') || (el && el.closest('form'));
+    function stripHtml(s){ return (s||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim(); }
+    function syncValidate(e){
+        if(window.beritaEditor && el) el.value = window.beritaEditor.getData();
+        if(!form) return;
+        const judul=form.querySelector('[name="judul"]'), ringkasan=form.querySelector('[name="ringkasan"]'), tanggal=form.querySelector('[name="tanggal"]'), katSel=form.querySelector('[name="kategori"]'), katBaru=form.querySelector('[name="kategori_baru"]');
+        let msg='';
+        if(!judul||!judul.value.trim()) msg='Judul berita wajib diisi.';
+        else if(!ringkasan||!ringkasan.value.trim()) msg='Ringkasan wajib diisi.';
+        else if(!stripHtml(el?el.value:'')) msg='Isi lengkap berita wajib diisi.';
+        else if(!tanggal||!tanggal.value) msg='Tanggal wajib diisi.';
+        else if(katSel&&katSel.value==='__new__'&&(!katBaru||!katBaru.value.trim())) msg='Kategori baru wajib diisi.';
+        if(msg){ e.preventDefault(); alert(msg); try{ (msg.includes('Judul')?judul:msg.includes('Ringkasan')?ringkasan:msg.includes('Isi')?(window.beritaEditor?window.beritaEditor.editing.view.focus():el.focus()):msg.includes('Tanggal')?tanggal:katBaru).focus(); }catch(_){} return false; }
+        const btn=form.querySelector('button[type="submit"]'); if(btn){ btn.disabled=true; btn.style.opacity='0.75'; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; }
+    }
+    if(form) form.addEventListener('submit', syncValidate);
+    if(!el) return;
+    if(typeof ClassicEditor==='undefined'){ console.warn('CKEditor gagal load'); return; }
+    ClassicEditor.create(el, { placeholder:'Tulis isi lengkap berita di sini...', toolbar:['heading','|','bold','italic','underline','link','bulletedList','numberedList','blockQuote','insertTable','undo','redo'] }).then(editor=>{ window.beritaEditor=editor; }).catch(err=>console.warn('CKEditor failed',err));
 });
 (function(){
     var hgBtn=document.getElementById('hapusGambarBtn'), hgIn=document.getElementById('hapusGambarInput');
